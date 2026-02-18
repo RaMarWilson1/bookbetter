@@ -1,3 +1,4 @@
+// src/db/schema.ts
 import {
   pgTable,
   uuid,
@@ -10,6 +11,7 @@ import {
   pgEnum,
   index,
   unique,
+  primaryKey,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -32,6 +34,13 @@ export const paymentTypeEnum = pgEnum('payment_type', ['deposit', 'full']);
 export const staffRoleEnum = pgEnum('staff_role', ['owner', 'manager', 'staff']);
 export const planEnum = pgEnum('plan', ['starter', 'growth', 'business']);
 
+// ============================================================
+// NextAuth Required Tables
+// These tables must match @auth/drizzle-adapter expectations.
+// Column names use camelCase in Drizzle but map to snake_case
+// in Postgres via the column string argument.
+// ============================================================
+
 // Users table
 export const users = pgTable(
   'users',
@@ -42,14 +51,12 @@ export const users = pgTable(
     email: varchar('email', { length: 255 }).notNull().unique(),
     emailVerified: timestamp('email_verified', { mode: 'date' }),
     image: text('image'),
-    password: text('password'), // bcrypt hash, optional (for magic link users)
+    password: text('password'),
     timeZone: varchar('time_zone', { length: 100 }).default('America/New_York'),
     locale: varchar('locale', { length: 10 }).default('en'),
-    // Location data for clients
     latitude: decimal('latitude', { precision: 10, scale: 8 }),
     longitude: decimal('longitude', { precision: 11, scale: 8 }),
     postalCode: varchar('postal_code', { length: 20 }),
-    // Metadata
     createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
   },
@@ -59,44 +66,52 @@ export const users = pgTable(
   })
 );
 
-// NextAuth required tables
+// Accounts table — adapter expects these exact Drizzle column names:
+// userId, type, provider, providerAccountId, refresh_token, access_token,
+// expires_at, token_type, scope, id_token, session_state
 export const accounts = pgTable('accounts', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  userId: uuid('user_id')
+  userId: uuid('userId')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   type: varchar('type', { length: 255 }).notNull(),
   provider: varchar('provider', { length: 255 }).notNull(),
-  providerAccountId: varchar('provider_account_id', { length: 255 }).notNull(),
-  refreshToken: text('refresh_token'),
-  accessToken: text('access_token'),
-  expiresAt: integer('expires_at'),
-  tokenType: varchar('token_type', { length: 255 }),
+  providerAccountId: varchar('providerAccountId', { length: 255 }).notNull(),
+  refresh_token: text('refresh_token'),
+  access_token: text('access_token'),
+  expires_at: integer('expires_at'),
+  token_type: varchar('token_type', { length: 255 }),
   scope: varchar('scope', { length: 255 }),
-  idToken: text('id_token'),
-  sessionState: varchar('session_state', { length: 255 }),
-});
+  id_token: text('id_token'),
+  session_state: varchar('session_state', { length: 255 }),
+}, (table) => ({
+  compoundKey: primaryKey({ columns: [table.provider, table.providerAccountId] }),
+}));
 
+// Sessions table — adapter expects sessionToken as primary key
 export const sessions = pgTable('sessions', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  sessionToken: varchar('session_token', { length: 255 }).notNull().unique(),
-  userId: uuid('user_id')
+  sessionToken: varchar('sessionToken', { length: 255 }).notNull().primaryKey(),
+  userId: uuid('userId')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   expires: timestamp('expires', { mode: 'date' }).notNull(),
 });
 
+// Verification tokens table
 export const verificationTokens = pgTable(
   'verification_tokens',
   {
     identifier: varchar('identifier', { length: 255 }).notNull(),
-    token: varchar('token', { length: 255 }).notNull().unique(),
+    token: varchar('token', { length: 255 }).notNull(),
     expires: timestamp('expires', { mode: 'date' }).notNull(),
   },
   (table) => ({
-    compoundKey: unique().on(table.identifier, table.token),
+    compoundKey: primaryKey({ columns: [table.identifier, table.token] }),
   })
 );
+
+// ============================================================
+// BookBetter Business Tables
+// ============================================================
 
 // Categories table
 export const categories = pgTable('categories', {
@@ -155,9 +170,9 @@ export const tenants = pgTable('tenants', {
   // Features & limits
   smsQuota: integer('sms_quota').default(0),
   smsUsed: integer('sms_used').default(0),
-  bookingsQuota: integer('bookings_quota').default(15), // Starter: 15
+  bookingsQuota: integer('bookings_quota').default(15),
   
-  // Stripe Connect (for pros who want to collect payments)
+  // Stripe Connect
   stripeAccountId: varchar('stripe_account_id', { length: 255 }),
   stripeOnboardingComplete: boolean('stripe_onboarding_complete').default(false),
   
@@ -170,7 +185,7 @@ export const tenants = pgTable('tenants', {
   categoryIdx: index('tenants_category_idx').on(table.categoryId),
 }));
 
-// Staff Accounts (for Business tier multi-staff)
+// Staff Accounts
 export const staffAccounts = pgTable('staff_accounts', {
   id: uuid('id').defaultRandom().primaryKey(),
   tenantId: uuid('tenant_id')
@@ -196,18 +211,12 @@ export const services = pgTable('services', {
     .references(() => tenants.id, { onDelete: 'cascade' }),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
-  priceCents: integer('price_cents').notNull(), // Store in cents
+  priceCents: integer('price_cents').notNull(),
   durationMinutes: integer('duration_minutes').notNull(),
-  
-  // Payment settings (per service)
-  depositCents: integer('deposit_cents'), // null = no deposit required
+  depositCents: integer('deposit_cents'),
   fullPayRequired: boolean('full_pay_required').default(false).notNull(),
-  
-  // Availability
-  bufferMinutes: integer('buffer_minutes').default(0), // Time between bookings
+  bufferMinutes: integer('buffer_minutes').default(0),
   advanceBookingDays: integer('advance_booking_days').default(30),
-  
-  // Status
   active: boolean('active').default(true).notNull(),
   sortOrder: integer('sort_order').default(0),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
@@ -217,22 +226,22 @@ export const services = pgTable('services', {
   activeIdx: index('services_active_idx').on(table.active),
 }));
 
-// Availability templates (working hours)
+// Availability templates
 export const availabilityTemplates = pgTable('availability_templates', {
   id: uuid('id').defaultRandom().primaryKey(),
   tenantId: uuid('tenant_id')
     .notNull()
     .references(() => tenants.id, { onDelete: 'cascade' }),
-  staffId: uuid('staff_id').references(() => users.id), // null = applies to all staff
-  dayOfWeek: integer('day_of_week').notNull(), // 0 = Sunday, 6 = Saturday
-  startTime: varchar('start_time', { length: 5 }).notNull(), // HH:MM format
-  endTime: varchar('end_time', { length: 5 }).notNull(), // HH:MM format
+  staffId: uuid('staff_id').references(() => users.id),
+  dayOfWeek: integer('day_of_week').notNull(),
+  startTime: varchar('start_time', { length: 5 }).notNull(),
+  endTime: varchar('end_time', { length: 5 }).notNull(),
   active: boolean('active').default(true).notNull(),
 }, (table) => ({
   tenantDayIdx: index('availability_tenant_day_idx').on(table.tenantId, table.dayOfWeek),
 }));
 
-// Availability exceptions (blocks, time off)
+// Availability exceptions
 export const availabilityExceptions = pgTable('availability_exceptions', {
   id: uuid('id').defaultRandom().primaryKey(),
   tenantId: uuid('tenant_id')
@@ -250,8 +259,6 @@ export const availabilityExceptions = pgTable('availability_exceptions', {
 // Bookings table
 export const bookings = pgTable('bookings', {
   id: uuid('id').defaultRandom().primaryKey(),
-  
-  // References
   clientId: uuid('client_id')
     .notNull()
     .references(() => users.id),
@@ -261,34 +268,20 @@ export const bookings = pgTable('bookings', {
   serviceId: uuid('service_id')
     .notNull()
     .references(() => services.id),
-  staffId: uuid('staff_id').references(() => users.id), // Who's performing the service
-  
-  // Timing (all in UTC)
+  staffId: uuid('staff_id').references(() => users.id),
   startUtc: timestamp('start_utc', { mode: 'date' }).notNull(),
   endUtc: timestamp('end_utc', { mode: 'date' }).notNull(),
-  
-  // Status
   status: bookingStatusEnum('status').notNull().default('pending'),
   paymentStatus: paymentStatusEnum('payment_status').notNull().default('unpaid'),
-  
-  // Client info (snapshot at booking time)
   clientName: varchar('client_name', { length: 255 }),
   clientEmail: varchar('client_email', { length: 255 }),
   clientPhone: varchar('client_phone', { length: 50 }),
   clientNotes: text('client_notes'),
-  
-  // Internal notes
   internalNotes: text('internal_notes'),
-  
-  // Cancellation
   cancelledAt: timestamp('cancelled_at', { mode: 'date' }),
   cancellationReason: text('cancellation_reason'),
-  
-  // Reminders sent
   reminderSent24h: boolean('reminder_sent_24h').default(false),
   reminderSent2h: boolean('reminder_sent_2h').default(false),
-  
-  // Metadata
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
 }, (table) => ({
@@ -300,7 +293,7 @@ export const bookings = pgTable('bookings', {
   statusIdx: index('bookings_status_idx').on(table.status),
 }));
 
-// Payment Intents (Stripe)
+// Payment Intents
 export const paymentIntents = pgTable('payment_intents', {
   id: uuid('id').defaultRandom().primaryKey(),
   bookingId: uuid('booking_id')
@@ -309,12 +302,9 @@ export const paymentIntents = pgTable('payment_intents', {
   stripePaymentIntentId: varchar('stripe_payment_intent_id', { length: 255 }).notNull().unique(),
   amountCents: integer('amount_cents').notNull(),
   type: paymentTypeEnum('type').notNull(),
-  status: varchar('status', { length: 50 }).notNull(), // Stripe status
-  
-  // Metadata
+  status: varchar('status', { length: 50 }).notNull(),
   stripeCustomerId: varchar('stripe_customer_id', { length: 255 }),
   receiptUrl: text('receipt_url'),
-  
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
 }, (table) => ({
@@ -335,18 +325,12 @@ export const reviews = pgTable('reviews', {
   clientId: uuid('client_id')
     .notNull()
     .references(() => users.id),
-  
-  rating: integer('rating').notNull(), // 1-5
+  rating: integer('rating').notNull(),
   comment: text('comment'),
-  
-  // Response
   response: text('response'),
   respondedAt: timestamp('responded_at', { mode: 'date' }),
-  
-  // Moderation
   flagged: boolean('flagged').default(false),
   approved: boolean('approved').default(true),
-  
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
 }, (table) => ({
   tenantIdx: index('reviews_tenant_idx').on(table.tenantId),
@@ -360,18 +344,12 @@ export const notifications = pgTable('notifications', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   bookingId: uuid('booking_id').references(() => bookings.id, { onDelete: 'cascade' }),
-  
-  type: varchar('type', { length: 50 }).notNull(), // 'email' | 'sms'
-  purpose: varchar('purpose', { length: 50 }).notNull(), // 'confirmation' | 'reminder_24h' | 'reminder_2h' | 'cancellation'
-  
-  // Contact info used
+  type: varchar('type', { length: 50 }).notNull(),
+  purpose: varchar('purpose', { length: 50 }).notNull(),
   recipient: varchar('recipient', { length: 255 }).notNull(),
-  
-  // Status
-  status: varchar('status', { length: 50 }).notNull(), // 'sent' | 'failed' | 'delivered' | 'bounced'
+  status: varchar('status', { length: 50 }).notNull(),
   externalId: varchar('external_id', { length: 255 }),
   errorMessage: text('error_message'),
-  
   sentAt: timestamp('sent_at', { mode: 'date' }).defaultNow().notNull(),
 }, (table) => ({
   userIdx: index('notifications_user_idx').on(table.userId),
@@ -379,7 +357,10 @@ export const notifications = pgTable('notifications', {
   typeIdx: index('notifications_type_idx').on(table.type),
 }));
 
+// ============================================================
 // Relations
+// ============================================================
+
 export const usersRelations = relations(users, ({ many }) => ({
   accounts: many(accounts),
   sessions: many(sessions),

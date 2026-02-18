@@ -37,11 +37,17 @@ export default function HomePage() {
               <Link href="/resources" className="text-gray-600 hover:text-gray-900 transition-colors">
                 Resources
               </Link>
+              <Link
+                href="/auth/sign-in"
+                className="text-gray-600 hover:text-gray-900 transition-colors font-medium"
+              >
+                Sign In
+              </Link>
               <Link 
-                href="/join" 
+                href="/auth/sign-up" 
                 className="bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800 transition-colors font-medium"
               >
-                Join the Team
+                Get Started
               </Link>
             </div>
 
@@ -67,7 +73,7 @@ export default function HomePage() {
               The place where you can book better, easier, and faster
             </p>
             <Link
-              href="/book"
+              href="/about"
               className="inline-block bg-black text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-800 transition-colors shadow-lg hover:shadow-xl"
             >
               About
@@ -128,13 +134,13 @@ export default function HomePage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
-                href="/book"
+                href="/auth/sign-up"
                 className="bg-white text-gray-900 border-2 border-gray-900 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-50 transition-colors"
               >
                 Find a Pro
               </Link>
               <Link
-                href="/join"
+                href="/auth/sign-up"
                 className="bg-black text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-800 transition-colors"
               >
                 Join as a Pro
@@ -158,7 +164,7 @@ export default function HomePage() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/join" className="text-gray-600 hover:text-gray-900 transition-colors">
+                  <Link href="/auth/sign-up" className="text-gray-600 hover:text-gray-900 transition-colors">
                     Join the Team
                   </Link>
                 </li>
