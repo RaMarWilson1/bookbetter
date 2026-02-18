@@ -1,6 +1,7 @@
 // src/app/auth/error/page.tsx
 'use client';
-export const dynamic = 'force-dynamic'; 
+
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AlertCircle } from 'lucide-react';
@@ -18,7 +19,7 @@ const errorMessages: Record<string, string> = {
   Default: 'An unexpected error occurred. Please try again.',
 };
 
-export default function AuthErrorPage() {
+function ErrorContent() {
   const searchParams = useSearchParams();
   const errorType = searchParams.get('error') || 'Default';
   const message = errorMessages[errorType] || errorMessages.Default;
@@ -49,5 +50,13 @@ export default function AuthErrorPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function AuthErrorPage() {
+  return (
+    <Suspense fallback={<div className="animate-pulse text-center py-20 text-slate-400">Loading...</div>}>
+      <ErrorContent />
+    </Suspense>
   );
 }

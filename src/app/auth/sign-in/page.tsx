@@ -1,14 +1,14 @@
 // src/app/auth/sign-in/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { OAuthButtons } from '../_components/oauth-buttons';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 
-export default function SignInPage() {
+function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
@@ -189,5 +189,13 @@ export default function SignInPage() {
         </Link>
       </p>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<div className="animate-pulse text-center py-20 text-slate-400">Loading...</div>}>
+      <SignInForm />
+    </Suspense>
   );
 }
