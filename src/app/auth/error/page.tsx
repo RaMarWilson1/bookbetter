@@ -1,6 +1,6 @@
 // src/app/auth/error/page.tsx
 'use client';
-
+export const dynamic = 'force-dynamic'; 
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AlertCircle } from 'lucide-react';
