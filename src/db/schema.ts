@@ -36,9 +36,6 @@ export const planEnum = pgEnum('plan', ['starter', 'growth', 'business']);
 
 // ============================================================
 // NextAuth Required Tables
-// These tables must match @auth/drizzle-adapter expectations.
-// Column names use camelCase in Drizzle but map to snake_case
-// in Postgres via the column string argument.
 // ============================================================
 
 // Users table
@@ -66,9 +63,6 @@ export const users = pgTable(
   })
 );
 
-// Accounts table — adapter expects these exact Drizzle column names:
-// userId, type, provider, providerAccountId, refresh_token, access_token,
-// expires_at, token_type, scope, id_token, session_state
 export const accounts = pgTable('accounts', {
   userId: uuid('userId')
     .notNull()
@@ -87,7 +81,6 @@ export const accounts = pgTable('accounts', {
   compoundKey: primaryKey({ columns: [table.provider, table.providerAccountId] }),
 }));
 
-// Sessions table — adapter expects sessionToken as primary key
 export const sessions = pgTable('sessions', {
   sessionToken: varchar('sessionToken', { length: 255 }).notNull().primaryKey(),
   userId: uuid('userId')
@@ -96,7 +89,6 @@ export const sessions = pgTable('sessions', {
   expires: timestamp('expires', { mode: 'date' }).notNull(),
 });
 
-// Verification tokens table
 export const verificationTokens = pgTable(
   'verification_tokens',
   {
@@ -113,7 +105,6 @@ export const verificationTokens = pgTable(
 // BookBetter Business Tables
 // ============================================================
 
-// Categories table
 export const categories = pgTable('categories', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: varchar('name', { length: 100 }).notNull().unique(),
@@ -176,6 +167,11 @@ export const tenants = pgTable('tenants', {
   stripeAccountId: varchar('stripe_account_id', { length: 255 }),
   stripeOnboardingComplete: boolean('stripe_onboarding_complete').default(false),
   
+  // Cancellation Policy
+  cancellationWindowHours: integer('cancellation_window_hours').default(24),
+  lateCancellationFeeCents: integer('late_cancellation_fee_cents').default(0),
+  cancellationPolicyText: text('cancellation_policy_text'),
+  
   // Status
   active: boolean('active').default(true).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
@@ -185,7 +181,6 @@ export const tenants = pgTable('tenants', {
   categoryIdx: index('tenants_category_idx').on(table.categoryId),
 }));
 
-// Staff Accounts
 export const staffAccounts = pgTable('staff_accounts', {
   id: uuid('id').defaultRandom().primaryKey(),
   tenantId: uuid('tenant_id')
@@ -203,7 +198,6 @@ export const staffAccounts = pgTable('staff_accounts', {
   userIdx: index('staff_user_idx').on(table.userId),
 }));
 
-// Services table
 export const services = pgTable('services', {
   id: uuid('id').defaultRandom().primaryKey(),
   tenantId: uuid('tenant_id')
@@ -226,7 +220,6 @@ export const services = pgTable('services', {
   activeIdx: index('services_active_idx').on(table.active),
 }));
 
-// Availability templates
 export const availabilityTemplates = pgTable('availability_templates', {
   id: uuid('id').defaultRandom().primaryKey(),
   tenantId: uuid('tenant_id')
@@ -241,7 +234,6 @@ export const availabilityTemplates = pgTable('availability_templates', {
   tenantDayIdx: index('availability_tenant_day_idx').on(table.tenantId, table.dayOfWeek),
 }));
 
-// Availability exceptions
 export const availabilityExceptions = pgTable('availability_exceptions', {
   id: uuid('id').defaultRandom().primaryKey(),
   tenantId: uuid('tenant_id')
@@ -256,7 +248,6 @@ export const availabilityExceptions = pgTable('availability_exceptions', {
   tenantTimeIdx: index('exceptions_tenant_time_idx').on(table.tenantId, table.startUtc),
 }));
 
-// Bookings table
 export const bookings = pgTable('bookings', {
   id: uuid('id').defaultRandom().primaryKey(),
   clientId: uuid('client_id')
@@ -293,7 +284,6 @@ export const bookings = pgTable('bookings', {
   statusIdx: index('bookings_status_idx').on(table.status),
 }));
 
-// Payment Intents
 export const paymentIntents = pgTable('payment_intents', {
   id: uuid('id').defaultRandom().primaryKey(),
   bookingId: uuid('booking_id')
@@ -312,7 +302,6 @@ export const paymentIntents = pgTable('payment_intents', {
   stripeIdx: index('payment_intents_stripe_idx').on(table.stripePaymentIntentId),
 }));
 
-// Reviews table
 export const reviews = pgTable('reviews', {
   id: uuid('id').defaultRandom().primaryKey(),
   bookingId: uuid('booking_id')
@@ -337,7 +326,6 @@ export const reviews = pgTable('reviews', {
   ratingIdx: index('reviews_rating_idx').on(table.rating),
 }));
 
-// Notifications log
 export const notifications = pgTable('notifications', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id')

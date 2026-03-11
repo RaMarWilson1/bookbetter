@@ -16,9 +16,10 @@ import {
 
 interface OverviewContentProps {
   userName: string;
+  tenantSlug: string | null;
 }
 
-export function OverviewContent({ userName }: OverviewContentProps) {
+export function OverviewContent({ userName, tenantSlug }: OverviewContentProps) {
   const firstName = userName.split(' ')[0];
   const hour = new Date().getHours();
   const greeting =
@@ -207,11 +208,16 @@ export function OverviewContent({ userName }: OverviewContentProps) {
           <div className="m-3 mt-2 p-4 bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg">
             <p className="text-xs text-slate-400 mb-1">Your booking page</p>
             <p className="text-sm text-white font-medium truncate mb-3">
-              bookbetter.vercel.app/book/...
+              {tenantSlug
+                ? `bookbetter.vercel.app/book/${tenantSlug}`
+                : 'bookbetter.vercel.app/book/...'}
             </p>
-            <button className="w-full py-2 px-3 bg-white/10 hover:bg-white/20 text-white text-xs font-medium rounded-md transition-colors">
+            <Link
+              href="/dashboard/settings"
+              className="block w-full py-2 px-3 bg-white/10 hover:bg-white/20 text-white text-xs font-medium rounded-md transition-colors text-center"
+            >
               Set up booking page →
-            </button>
+            </Link>
           </div>
         </div>
       </div>

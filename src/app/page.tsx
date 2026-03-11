@@ -2,12 +2,12 @@ import Link from 'next/link';
 
 export default function HomePage() {
   const categories = [
-    { name: 'Barbers', icon: '✂️', href: '/book/barbers' },
-    { name: 'Tattoo Artist', icon: '🎨', href: '/book/tattoo-artist' },
-    { name: 'Massage Therapist', icon: '💆', href: '/book/massage' },
-    { name: 'Hair Stylist', icon: '💇', href: '/book/hair-stylist' },
-    { name: 'Nail Techs', icon: '💅', href: '/book/nail-techs' },
-    { name: 'More', icon: '➕', href: '/categories' },
+    { name: 'Barbers', icon: '✂️', href: '/search' },
+    { name: 'Tattoo Artist', icon: '🎨', href: '/search' },
+    { name: 'Massage Therapist', icon: '💆', href: '/search' },
+    { name: 'Hair Stylist', icon: '💇', href: '/search' },
+    { name: 'Nail Techs', icon: '💅', href: '/search' },
+    { name: 'More', icon: '➕', href: '/search' },
   ];
 
   return (

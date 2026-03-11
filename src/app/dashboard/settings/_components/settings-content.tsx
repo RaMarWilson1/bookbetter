@@ -1,10 +1,12 @@
 // src/app/dashboard/settings/_components/settings-content.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { User, Building, Link2, LogOut, Save, Copy, Check } from 'lucide-react';
+import { User, Building, Link2, LogOut, Save, Copy, Check, Camera, X } from 'lucide-react';
+import { BrandingSettings } from './branding-settings';
+import { CancellationSettings } from './cancellation-settings';
 
 interface SettingsContentProps {
   user: {
@@ -27,6 +29,12 @@ interface SettingsContentProps {
     postalCode: string | null;
     timeZone: string | null;
     plan: string;
+    primaryColor: string | null;
+    secondaryColor: string | null;
+    logo: string | null;
+    cancellationWindowHours: number | null;
+    lateCancellationFeeCents: number | null;
+    cancellationPolicyText: string | null;
   } | null;
 }
 
@@ -48,13 +56,103 @@ export function SettingsContent({ user, tenant }: SettingsContentProps) {
   });
   const [saving, setSaving] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(user.image || '');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [currentSlug, setCurrentSlug] = useState(tenant?.slug || '');
+  const [slugInput, setSlugInput] = useState(tenant?.slug || '');
+  const [editingSlug, setEditingSlug] = useState(false);
+  const [savingSlug, setSavingSlug] = useState(false);
+  const [slugError, setSlugError] = useState('');
 
-  const bookingUrl = tenant ? `bookbetter.vercel.app/book/${tenant.slug}` : '';
+  const bookingUrl = tenant ? `bookbetter.vercel.app/book/${currentSlug}` : '';
 
   const handleCopy = () => {
     navigator.clipboard.writeText(`https://${bookingUrl}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSaveSlug = async () => {
+    const trimmed = slugInput.trim();
+    if (!trimmed) {
+      setSlugError('Link cannot be empty');
+      return;
+    }
+    if (trimmed.length < 3) {
+      setSlugError('Must be at least 3 characters');
+      return;
+    }
+    if (trimmed === currentSlug) {
+      setEditingSlug(false);
+      return;
+    }
+
+    setSavingSlug(true);
+    setSlugError('');
+
+    try {
+      const res = await fetch('/api/dashboard/settings/slug', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: trimmed }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setSlugError(data.error || 'Failed to update');
+        return;
+      }
+
+      setCurrentSlug(trimmed);
+      setEditingSlug(false);
+      router.refresh();
+    } catch {
+      setSlugError('Something went wrong');
+    } finally {
+      setSavingSlug(false);
+    }
+  };
+
+  const handleAvatarUpload = async (file: File) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) return;
+    if (file.size > 2 * 1024 * 1024) return;
+
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      const res = await fetch('/api/dashboard/settings/avatar', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAvatarUrl(data.url);
+        router.refresh();
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    setUploadingAvatar(true);
+    try {
+      const res = await fetch('/api/dashboard/settings/avatar', { method: 'DELETE' });
+      if (res.ok) {
+        setAvatarUrl('');
+        router.refresh();
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -110,22 +208,70 @@ export function SettingsContent({ user, tenant }: SettingsContentProps) {
       {/* Booking Link */}
       {tenant && (
         <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl p-5 text-white">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-3">
             <Link2 className="w-4 h-4 text-slate-400" />
             <p className="text-sm font-medium text-slate-300">Your Booking Link</p>
           </div>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 text-sm bg-white/10 px-3 py-2 rounded-md truncate">
-              {bookingUrl}
-            </code>
-            <button
-              onClick={handleCopy}
-              className="p-2 bg-white/10 hover:bg-white/20 rounded-md transition-colors"
-            >
-              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            </button>
-          </div>
-          <p className="text-xs text-slate-400 mt-2">Share this link with clients so they can book you.</p>
+
+          {editingSlug ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-1 text-sm">
+                <span className="text-slate-400">bookbetter.vercel.app/book/</span>
+                <input
+                  type="text"
+                  value={slugInput}
+                  onChange={(e) => {
+                    setSlugInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
+                    setSlugError('');
+                  }}
+                  className="bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-sm font-mono focus:outline-none focus:border-white/40 w-40"
+                  autoFocus
+                />
+              </div>
+              {slugError && (
+                <p className="text-xs text-red-400">{slugError}</p>
+              )}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSaveSlug}
+                  disabled={savingSlug}
+                  className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-medium rounded-md transition-colors disabled:opacity-50"
+                >
+                  {savingSlug ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  onClick={() => { setEditingSlug(false); setSlugInput(tenant.slug); setSlugError(''); }}
+                  className="px-3 py-1.5 text-slate-400 hover:text-white text-xs font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-sm bg-white/10 px-3 py-2 rounded-md truncate">
+                  {bookingUrl}
+                </code>
+                <button
+                  onClick={handleCopy}
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-md transition-colors"
+                  title="Copy link"
+                >
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+              <div className="flex items-center gap-3 mt-2">
+                <p className="text-xs text-slate-400">Share this link with clients so they can book you.</p>
+                <button
+                  onClick={() => setEditingSlug(true)}
+                  className="text-xs text-blue-400 hover:text-blue-300 font-medium whitespace-nowrap"
+                >
+                  Edit link
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -136,6 +282,63 @@ export function SettingsContent({ user, tenant }: SettingsContentProps) {
           <h3 className="font-semibold text-slate-900">Profile</h3>
         </div>
         <div className="p-5 space-y-4">
+          {/* Avatar Upload */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Photo</label>
+            <div className="flex items-center gap-4">
+              <div className="relative group">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt=""
+                    className="w-16 h-16 rounded-full object-cover border-2 border-slate-200"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold text-lg">
+                    {(user.name || user.email)[0].toUpperCase()}
+                  </div>
+                )}
+                <button
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="absolute inset-0 w-16 h-16 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                >
+                  <Camera className="w-5 h-5 text-white" />
+                </button>
+              </div>
+              <div>
+                <button
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="text-sm text-blue-500 hover:text-blue-600 font-medium"
+                >
+                  {uploadingAvatar ? 'Uploading...' : avatarUrl ? 'Change photo' : 'Upload photo'}
+                </button>
+                {avatarUrl && (
+                  <button
+                    onClick={handleRemoveAvatar}
+                    disabled={uploadingAvatar}
+                    className="block text-sm text-red-500 hover:text-red-600 font-medium mt-0.5"
+                  >
+                    Remove
+                  </button>
+                )}
+                <p className="text-xs text-slate-400 mt-1">JPG, PNG, or WebP. Max 2MB.</p>
+              </div>
+            </div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleAvatarUpload(file);
+                if (avatarInputRef.current) avatarInputRef.current.value = '';
+              }}
+              className="hidden"
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Name</label>
             <input
@@ -275,6 +478,32 @@ export function SettingsContent({ user, tenant }: SettingsContentProps) {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Branding Settings */}
+      {tenant && (
+        <BrandingSettings
+          tenantId={tenant.id}
+          initialData={{
+            primaryColor: tenant.primaryColor || '#3B82F6',
+            secondaryColor: tenant.secondaryColor || '#10B981',
+            logo: tenant.logo,
+            name: tenant.name,
+            slug: tenant.slug,
+          }}
+        />
+      )}
+
+      {/* Cancellation Policy */}
+      {tenant && (
+        <CancellationSettings
+          tenantId={tenant.id}
+          initialData={{
+            cancellationWindowHours: tenant.cancellationWindowHours ?? 24,
+            lateCancellationFeeCents: tenant.lateCancellationFeeCents ?? 0,
+            cancellationPolicyText: tenant.cancellationPolicyText ?? null,
+          }}
+        />
       )}
 
       {/* Danger Zone */}
