@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import Link from 'next/link';
 
 export default function HomePage() {
@@ -17,16 +16,9 @@ export default function HomePage() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <Link href="/" className="flex items-center space-x-3">
-              <div className="relative w-10 h-10">
-                <Image
-                  src="/Logo.jpg"
-                  alt="BookBetter Logo"
-                  fill
-                  className="object-contain"
-                />
-              </div>
+            {/* Logo — text style matching dashboard */}
+            <Link href="/" className="text-xl font-bold text-gray-900 tracking-tight">
+              Book<span className="text-blue-500">Better</span>
             </Link>
 
             {/* Desktop Navigation */}
@@ -67,7 +59,7 @@ export default function HomePage() {
         <section className="relative py-20 px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-gray-900 mb-6">
-              BookBetter
+              Book<span className="text-blue-500">Better</span>
             </h1>
             <p className="text-xl sm:text-2xl text-gray-600 mb-10">
               The place where you can book better, easier, and faster
@@ -89,7 +81,6 @@ export default function HomePage() {
                 key={i}
                 className="relative aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 hover:scale-105 transition-transform duration-300 cursor-pointer shadow-md hover:shadow-xl"
               >
-                {/* Placeholder for service images */}
                 <div className="absolute inset-0 flex items-center justify-center text-gray-400">
                   <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -151,65 +142,19 @@ export default function HomePage() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Company */}
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-4">Company</h3>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="/about" className="text-gray-600 hover:text-gray-900 transition-colors">
-                    About
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/auth/sign-up" className="text-gray-600 hover:text-gray-900 transition-colors">
-                    Join the Team
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Resources */}
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-4">Resources</h3>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="/help" className="text-gray-600 hover:text-gray-900 transition-colors">
-                    Help Center
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/blog" className="text-gray-600 hover:text-gray-900 transition-colors">
-                    Blog
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Legal */}
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-4">Legal</h3>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="/privacy" className="text-gray-600 hover:text-gray-900 transition-colors">
-                    Privacy Policy
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/terms" className="text-gray-600 hover:text-gray-900 transition-colors">
-                    Terms of Service
-                  </Link>
-                </li>
-              </ul>
-            </div>
+      <footer className="bg-white border-t border-gray-200 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <Link href="/" className="text-lg font-bold text-gray-900 tracking-tight">
+            Book<span className="text-blue-500">Better</span>
+          </Link>
+          <div className="flex items-center gap-6 text-sm text-gray-500">
+            <Link href="/privacy" className="hover:text-gray-900 transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-gray-900 transition-colors">Terms</Link>
+            <Link href="/help" className="hover:text-gray-900 transition-colors">Help</Link>
           </div>
-
-          {/* Bottom Footer */}
-          <div className="mt-12 pt-8 border-t border-gray-200 text-center text-gray-600">
-            <p>&copy; {new Date().getFullYear()} BookBetter. All rights reserved.</p>
-          </div>
+          <p className="text-sm text-gray-400">
+            &copy; {new Date().getFullYear()} BookBetter
+          </p>
         </div>
       </footer>
     </div>

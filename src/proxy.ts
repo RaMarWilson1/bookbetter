@@ -1,5 +1,4 @@
-//src/middleware.ts
-
+// src/middleware.ts
 import { auth } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 
@@ -22,7 +21,6 @@ export default auth((req) => {
   }
 
   if (isAuthPage && isLoggedIn) {
-    // Redirect logged-in users based on role
     const role = req.auth?.user?.role;
     if (role === 'pro') {
       return NextResponse.redirect(new URL('/dashboard', req.url));
@@ -34,7 +32,8 @@ export default auth((req) => {
   if (pathname.startsWith('/dashboard') && isLoggedIn) {
     const role = req.auth?.user?.role;
     if (role !== 'pro' && role !== 'staff') {
-      return NextResponse.redirect(new URL('/', req.url));
+      // Not a pro/staff yet — redirect to onboarding
+      return NextResponse.redirect(new URL('/onboarding', req.url));
     }
   }
 
