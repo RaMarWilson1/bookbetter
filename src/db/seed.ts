@@ -25,7 +25,7 @@ const SEED_NAME = 'RaMar Wilson';
 
 const BUSINESS_NAME = 'RaMar Cuts';
 const BUSINESS_SLUG = 'ramar-cuts';
-const BUSINESS_CATEGORY = null;
+const BUSINESS_CATEGORY = 'barber';
 const BUSINESS_CITY = 'Philadelphia';
 const BUSINESS_STATE = 'PA';
 const BUSINESS_PHONE = '(215) 555-0100';
@@ -35,6 +35,42 @@ const BUSINESS_PLAN = 'business' as const; // 'starter' | 'growth' | 'business'
 
 async function seed() {
   console.log('🌱 Starting seed...\n');
+
+  // 0. Seed categories if they don't exist
+  const categoryData = [
+    { name: 'Barbers', slug: 'barber', icon: '💈', sortOrder: 0 },
+    { name: 'Hair Salons', slug: 'hair-salon', icon: '💇', sortOrder: 1 },
+    { name: 'Nail Salons', slug: 'nail-salon', icon: '💅', sortOrder: 2 },
+    { name: 'Tattoo', slug: 'tattoo', icon: '🐍', sortOrder: 3 },
+    { name: 'Massage', slug: 'massage', icon: '💆', sortOrder: 4 },
+    { name: 'Spa', slug: 'spa', icon: '🧖', sortOrder: 5 },
+    { name: 'Fitness', slug: 'fitness', icon: '🏋', sortOrder: 6 },
+    { name: 'Beauty', slug: 'beauty', icon: '✨', sortOrder: 7 },
+    { name: 'Photography', slug: 'photography', icon: '📷', sortOrder: 8 },
+    { name: 'Other', slug: 'other', icon: '🔧', sortOrder: 9 },
+  ];
+
+  for (const cat of categoryData) {
+    const [existing] = await db
+      .select()
+      .from(schema.categories)
+      .where(eq(schema.categories.slug, cat.slug))
+      .limit(1);
+
+    if (!existing) {
+      await db.insert(schema.categories).values(cat);
+    }
+  }
+  console.log(`✅ Ensured ${categoryData.length} categories exist`);
+
+  // Look up the barber category ID for our tenant
+  const [barberCat] = await db
+    .select({ id: schema.categories.id })
+    .from(schema.categories)
+    .where(eq(schema.categories.slug, BUSINESS_CATEGORY))
+    .limit(1);
+
+  const categoryUuid = barberCat?.id || null;
 
   // 1. Find or create user
   let [user] = await db
@@ -109,7 +145,7 @@ async function seed() {
     .values({
       name: BUSINESS_NAME,
       slug: BUSINESS_SLUG,
-      categoryId: BUSINESS_CATEGORY,
+      categoryId: categoryUuid,
       description: `Professional barber services by ${SEED_NAME}. Fresh cuts, beard trims, and more.`,
       email: SEED_EMAIL,
       phone: BUSINESS_PHONE,
@@ -119,8 +155,8 @@ async function seed() {
       country: 'US',
       timeZone: 'America/New_York',
       plan: BUSINESS_PLAN,
-      bookingsQuota: BUSINESS_PLAN === 'starter' ? 15 : 999999,
-      smsQuota: BUSINESS_PLAN === 'business' ? 200 : BUSINESS_PLAN === 'growth' ? 50 : 0,
+      bookingsQuota: 999999,
+      smsQuota: 200,
       primaryColor: '#1A1A2E',
       secondaryColor: '#E94560',
       cancellationWindowHours: 24,
@@ -186,7 +222,6 @@ async function seed() {
     staffId: null,
     startUtc: nextSunday,
     endUtc: nextSundayEnd,
-    isBlocked: true,
     reason: 'Day off',
   });
   console.log('✅ Created availability exception (day off next Sunday)');
