@@ -191,6 +191,9 @@ export const staffAccounts = pgTable('staff_accounts', {
     .references(() => users.id, { onDelete: 'cascade' }),
   role: staffRoleEnum('role').notNull().default('staff'),
   active: boolean('active').default(true).notNull(),
+  // Stripe Connect — each staff member has their own connected account
+  stripeAccountId: varchar('stripe_account_id', { length: 255 }),
+  stripeOnboardingComplete: boolean('stripe_onboarding_complete').default(false),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
 }, (table) => ({
   tenantUserUnique: unique().on(table.tenantId, table.userId),
@@ -345,6 +348,30 @@ export const notifications = pgTable('notifications', {
   typeIdx: index('notifications_type_idx').on(table.type),
 }));
 
+// Staff Invites
+export const inviteStatusEnum = pgEnum('invite_status', ['pending', 'accepted', 'declined', 'expired']);
+
+export const staffInvites = pgTable('staff_invites', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id')
+    .notNull()
+    .references(() => tenants.id, { onDelete: 'cascade' }),
+  email: varchar('email', { length: 255 }).notNull(),
+  role: staffRoleEnum('role').notNull().default('staff'),
+  status: inviteStatusEnum('status').notNull().default('pending'),
+  invitedBy: uuid('invited_by')
+    .notNull()
+    .references(() => users.id),
+  token: varchar('token', { length: 255 }).notNull().unique(),
+  expiresAt: timestamp('expires_at', { mode: 'date' }).notNull(),
+  acceptedAt: timestamp('accepted_at', { mode: 'date' }),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
+}, (table) => ({
+  tenantIdx: index('invites_tenant_idx').on(table.tenantId),
+  emailIdx: index('invites_email_idx').on(table.email),
+  tokenIdx: index('invites_token_idx').on(table.token),
+}));
+
 // ============================================================
 // Relations
 // ============================================================
@@ -370,6 +397,7 @@ export const tenantsRelations = relations(tenants, ({ one, many }) => ({
   reviews: many(reviews),
   availabilityTemplates: many(availabilityTemplates),
   availabilityExceptions: many(availabilityExceptions),
+  staffInvites: many(staffInvites),
 }));
 
 export const servicesRelations = relations(services, ({ one, many }) => ({

@@ -158,6 +158,7 @@ export function BrandingSettings({ tenantId, initialData }: BrandingSettingsProp
             /* Logo Preview */
             <div className="flex items-center gap-4">
               <div className="relative group">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={logoUrl}
                   alt="Your logo"
@@ -296,7 +297,7 @@ export function BrandingSettings({ tenantId, initialData }: BrandingSettingsProp
             <div className="p-4 bg-slate-50">
               <div className="flex items-center gap-3 mb-3">
                 {logoUrl ? (
-                  <img src={logoUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
+                  <>{/* eslint-disable-next-line @next/next/no-img-element */}<img src={logoUrl} alt="" className="w-10 h-10 rounded-full object-cover" /></>
                 ) : (
                   <div
                     className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm"

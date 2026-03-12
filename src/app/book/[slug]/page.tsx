@@ -81,6 +81,27 @@ export default async function BookingPage({
 
   if (!data) notFound();
 
+  // Check booking limit for Starter plan
+  let bookingLimitReached = false;
+  if (data.tenant.plan === 'starter') {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const [monthCount] = await db
+      .select({ count: count(bookings.id) })
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.tenantId, data.tenant.id),
+          gte(bookings.createdAt, startOfMonth)
+        )
+      );
+
+    const limit = data.tenant.bookingsQuota || 15;
+    bookingLimitReached = (monthCount?.count || 0) >= limit;
+  }
+
   return (
     <BookingFlow
       tenant={data.tenant}
@@ -88,6 +109,7 @@ export default async function BookingPage({
       templates={data.templates}
       exceptions={data.exceptions}
       reviewStats={data.reviewStats}
+      bookingLimitReached={bookingLimitReached}
     />
   );
 }

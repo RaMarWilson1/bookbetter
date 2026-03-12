@@ -13,13 +13,17 @@ import {
   Scissors,
   CalendarPlus,
 } from 'lucide-react';
+import { UpgradeBanner } from './upgrade-prompt';
 
 interface OverviewContentProps {
   userName: string;
   tenantSlug: string | null;
+  plan?: string;
+  bookingsUsed?: number;
+  bookingsLimit?: number;
 }
 
-export function OverviewContent({ userName, tenantSlug }: OverviewContentProps) {
+export function OverviewContent({ userName, tenantSlug, plan, bookingsUsed, bookingsLimit }: OverviewContentProps) {
   const firstName = userName.split(' ')[0];
   const hour = new Date().getHours();
   const greeting =
@@ -92,6 +96,24 @@ export function OverviewContent({ userName, tenantSlug }: OverviewContentProps) 
           Here&apos;s what&apos;s happening with your business today.
         </p>
       </div>
+
+      {/* Upgrade prompts for Starter plan */}
+      {plan === 'starter' && bookingsUsed !== undefined && bookingsLimit !== undefined && (
+        <>
+          <UpgradeBanner
+            type="limit"
+            bookingsUsed={bookingsUsed}
+            bookingsLimit={bookingsLimit}
+            plan={plan}
+          />
+          <UpgradeBanner
+            type="warning"
+            bookingsUsed={bookingsUsed}
+            bookingsLimit={bookingsLimit}
+            plan={plan}
+          />
+        </>
+      )}
 
       {/* Stats grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -1,8 +1,8 @@
 // src/app/api/book/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { bookings, services, tenants, users, availabilityTemplates, availabilityExceptions } from '@/db/schema';
-import { eq, and, gte, lte, or } from 'drizzle-orm';
+import { bookings, services, tenants, users, availabilityExceptions } from '@/db/schema';
+import { eq, and, gte, lte, or, count } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
@@ -53,6 +53,34 @@ export async function POST(req: NextRequest) {
         { error: 'Business not found' },
         { status: 404 }
       );
+    }
+
+    // Check booking limit for Starter plan
+    if (tenant.plan === 'starter') {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const [monthCount] = await db
+        .select({ count: count() })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.tenantId, tenantId),
+            gte(bookings.createdAt, startOfMonth)
+          )
+        );
+
+      const limit = tenant.bookingsQuota || 15;
+      if ((monthCount?.count || 0) >= limit) {
+        return NextResponse.json(
+          {
+            error: 'This professional has reached their booking limit for the month. Please try again next month or contact them directly.',
+            code: 'BOOKING_LIMIT_REACHED',
+          },
+          { status: 429 }
+        );
+      }
     }
 
     const startDate = new Date(startUtc);

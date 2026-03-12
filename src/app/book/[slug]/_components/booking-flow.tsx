@@ -164,7 +164,8 @@ export function BookingFlow({
   templates,
   exceptions,
   reviewStats,
-}: BookingFlowProps) {
+  bookingLimitReached,
+}: BookingFlowProps & { bookingLimitReached?: boolean }) {
   const [step, setStep] = useState(0); // 0=service, 1=datetime, 2=info, 3=confirm, 4=done
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -176,6 +177,8 @@ export function BookingFlow({
   const [clientNotes, setClientNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showLimitModal, setShowLimitModal] = useState(bookingLimitReached ?? false);
+  const [bookingId, setBookingId] = useState<string | null>(null);
 
   const location = [tenant.address, tenant.city, tenant.state]
     .filter(Boolean)
@@ -261,11 +264,20 @@ export function BookingFlow({
 
       if (!res.ok) {
         const data = await res.json();
+        if (data.code === 'BOOKING_LIMIT_REACHED') {
+          setShowLimitModal(true);
+          setLoading(false);
+          return;
+        }
         setError(data.error || 'Failed to book. Please try again.');
         setLoading(false);
         return;
       }
 
+      const data = await res.json();
+      if (data.booking?.id) {
+        setBookingId(data.booking.id);
+      }
       setStep(4); // Success
     } catch {
       setError('Something went wrong. Please try again.');
@@ -289,6 +301,40 @@ export function BookingFlow({
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {/* Booking limit modal */}
+      {showLimitModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-8 text-center shadow-xl">
+            <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Calendar className="w-7 h-7 text-amber-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Bookings Unavailable</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              {tenant.name} has reached their booking limit for this month.
+              Please check back at the start of next month, or contact them directly to schedule.
+            </p>
+            {tenant.phone && (
+              <a
+                href={`tel:${tenant.phone}`}
+                className="inline-flex items-center gap-2 text-sm font-medium mb-4"
+                style={{ color: brandColor }}
+              >
+                <Phone className="w-4 h-4" />
+                {tenant.phone}
+              </a>
+            )}
+            <div className="mt-2">
+              <a
+                href="/search"
+                className="inline-block bg-gray-900 text-white px-6 py-3 rounded-lg text-sm font-semibold hover:bg-gray-800 transition-colors"
+              >
+                Find other professionals
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Brand color bar */}
       <div className="h-1" style={{ backgroundColor: brandColor }} />
 
@@ -297,7 +343,7 @@ export function BookingFlow({
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {tenant.logo ? (
-              <img src={tenant.logo} alt="" className="w-8 h-8 rounded-full object-cover" />
+              <>{/* eslint-disable-next-line @next/next/no-img-element */}<img src={tenant.logo} alt="" className="w-8 h-8 rounded-full object-cover" /></>
             ) : (
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs"
@@ -666,12 +712,63 @@ export function BookingFlow({
             </p>
 
             {selectedService && selectedDate && selectedTime && (
-              <div className="bg-white rounded-xl border border-slate-200/60 p-5 max-w-sm mx-auto mb-8 text-left">
+              <div className="bg-white rounded-xl border border-slate-200/60 p-5 max-w-sm mx-auto mb-6 text-left">
                 <p className="font-semibold text-slate-900">{selectedService.name}</p>
                 <p className="text-sm text-slate-500 mt-1">
                   {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} at {formatTime(selectedTime)}
                 </p>
                 <p className="text-sm text-slate-500">{formatPrice(selectedService.priceCents)} · {formatDuration(selectedService.durationMinutes)}</p>
+              </div>
+            )}
+
+            {/* Calendar buttons */}
+            {selectedService && selectedDate && selectedTime && (
+              <div className="max-w-sm mx-auto mb-8">
+                <p className="text-sm font-medium text-slate-700 mb-3">Add to your calendar</p>
+                <div className="flex gap-2 justify-center flex-wrap">
+                  {/* Google Calendar */}
+                  <a
+                    href={(() => {
+                      const [h, m] = (selectedTime || '00:00').split(':').map(Number);
+                      const start = new Date(selectedDate!);
+                      start.setHours(h, m, 0, 0);
+                      const end = new Date(start);
+                      end.setMinutes(end.getMinutes() + selectedService!.durationMinutes);
+                      const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+                      const params = new URLSearchParams({
+                        action: 'TEMPLATE',
+                        text: `${selectedService!.name} — ${tenant.name}`,
+                        dates: `${fmt(start)}/${fmt(end)}`,
+                        details: `Service: ${selectedService!.name}\nDuration: ${selectedService!.durationMinutes} min\nWith: ${tenant.name}${tenant.phone ? `\nPhone: ${tenant.phone}` : ''}`,
+                        location: [tenant.name, tenant.address, [tenant.city, tenant.state].filter(Boolean).join(', ')].filter(Boolean).join(', '),
+                      });
+                      return `https://www.google.com/calendar/render?${params.toString()}`;
+                    })()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <path d="M18 3H6a3 3 0 00-3 3v12a3 3 0 003 3h12a3 3 0 003-3V6a3 3 0 00-3-3z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M16 1v4M8 1v4M3 9h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Google
+                  </a>
+
+                  {/* Apple / Outlook — .ics download */}
+                  {bookingId && (
+                    <a
+                      href={`/api/book/${bookingId}/calendar`}
+                      download
+                      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      Apple / Outlook (.ics)
+                    </a>
+                  )}
+                </div>
               </div>
             )}
 

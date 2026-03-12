@@ -3,10 +3,12 @@
 
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { signOut } from 'next-auth/react';
-import { User, Building, Link2, LogOut, Save, Copy, Check, Camera, X } from 'lucide-react';
+import { User, Building, Link2, LogOut, Save, Copy, Check, Camera, CreditCard } from 'lucide-react';
 import { BrandingSettings } from './branding-settings';
 import { CancellationSettings } from './cancellation-settings';
+import { StripeConnectCard } from './stripe-connect-card';
 
 interface SettingsContentProps {
   user: {
@@ -288,6 +290,7 @@ export function SettingsContent({ user, tenant }: SettingsContentProps) {
             <div className="flex items-center gap-4">
               <div className="relative group">
                 {avatarUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={avatarUrl}
                     alt=""
@@ -504,6 +507,30 @@ export function SettingsContent({ user, tenant }: SettingsContentProps) {
             cancellationPolicyText: tenant.cancellationPolicyText ?? null,
           }}
         />
+      )}
+
+      {/* Stripe Payments — each pro/staff connects their own account */}
+      <StripeConnectCard />
+
+      {/* Billing & Plan */}
+      {tenant && (
+        <div className="bg-white rounded-xl border border-slate-200/60 overflow-hidden">
+          <div className="p-5 flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-slate-900">Billing & Plan</h3>
+              <p className="text-sm text-slate-500 mt-0.5">
+                You&apos;re on the <span className="font-medium capitalize">{tenant.plan}</span> plan.
+              </p>
+            </div>
+            <Link
+              href="/dashboard/settings/billing"
+              className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              <CreditCard className="w-4 h-4" />
+              Manage Plan
+            </Link>
+          </div>
+        </div>
       )}
 
       {/* Danger Zone */}

@@ -18,6 +18,8 @@ import {
   X,
   ChevronDown,
   Bell,
+  UserPlus,
+  CreditCard,
 } from 'lucide-react';
 
 interface DashboardShellProps {
@@ -37,6 +39,7 @@ const navItems = [
   { label: 'Availability', href: '/dashboard/availability', icon: Clock },
   { label: 'Clients', href: '/dashboard/clients', icon: Users },
   { label: 'Reviews', href: '/dashboard/reviews', icon: Star },
+  { label: 'Team', href: '/dashboard/team', icon: UserPlus },
 ];
 
 const bottomNavItems = [
@@ -138,6 +141,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-slate-800/60 transition-all duration-150"
             >
               {user.image ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={user.image}
                   alt=""
@@ -211,6 +215,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
             {/* Mobile user avatar */}
             <div className="lg:hidden">
               {user.image ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={user.image}
                   alt=""
