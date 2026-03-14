@@ -6,12 +6,14 @@ import { Palette, Upload, Check, Eye, X, ImageIcon, ExternalLink } from 'lucide-
 
 interface BrandingSettingsProps {
   tenantId: string;
+  plan: string;
   initialData: {
     primaryColor: string;
     secondaryColor: string;
     logo: string | null;
     name: string;
     slug: string;
+    showPoweredBy: boolean;
   };
 }
 
@@ -26,10 +28,11 @@ const PRESET_COLORS = [
   { label: 'Black', value: '#18181B' },
 ];
 
-export function BrandingSettings({ tenantId, initialData }: BrandingSettingsProps) {
+export function BrandingSettings({ tenantId, plan, initialData }: BrandingSettingsProps) {
   const [primaryColor, setPrimaryColor] = useState(initialData.primaryColor);
   const [secondaryColor, setSecondaryColor] = useState(initialData.secondaryColor);
   const [logoUrl, setLogoUrl] = useState(initialData.logo || '');
+  const [showPoweredBy, setShowPoweredBy] = useState(initialData.showPoweredBy);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -122,6 +125,7 @@ export function BrandingSettings({ tenantId, initialData }: BrandingSettingsProp
           primaryColor,
           secondaryColor,
           logo: logoUrl || null,
+          showPoweredBy,
         }),
       });
 
@@ -328,6 +332,35 @@ export function BrandingSettings({ tenantId, initialData }: BrandingSettingsProp
             <ExternalLink className="w-3.5 h-3.5" />
             View live booking page
           </a>
+        </div>
+
+        {/* Powered by BookBetter Toggle */}
+        <div className="flex items-center justify-between py-3 border-t border-slate-100">
+          <div>
+            <p className="text-sm font-medium text-slate-700">
+              Show &quot;Powered by BookBetter&quot;
+            </p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {plan === 'starter'
+                ? 'Upgrade to Growth to remove the BookBetter badge'
+                : 'Display a BookBetter badge on your booking page footer'}
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              if (plan !== 'starter') setShowPoweredBy(!showPoweredBy);
+            }}
+            disabled={plan === 'starter'}
+            className={`relative w-11 h-6 rounded-full transition-colors ${
+              showPoweredBy ? 'bg-blue-500' : 'bg-slate-200'
+            } ${plan === 'starter' ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <div
+              className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
+                showPoweredBy ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
         </div>
 
         {/* Error / Success */}

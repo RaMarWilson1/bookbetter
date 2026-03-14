@@ -16,6 +16,8 @@ import {
   ArrowRight,
   Sparkles,
   ExternalLink,
+  Tag,
+  X,
 } from 'lucide-react';
 
 interface BillingContentProps {
@@ -97,19 +99,49 @@ export function BillingContent({ tenant, usage, isOwner }: BillingContentProps) 
 
   const [interval, setInterval] = useState<'monthly' | 'annual'>('monthly');
   const [loading, setLoading] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponApplied, setCouponApplied] = useState<string | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [showCouponInput, setShowCouponInput] = useState(false);
+
+  const handleApplyCoupon = () => {
+    if (!couponCode.trim()) return;
+    setCouponApplied(couponCode.trim());
+    setCouponError(null);
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponApplied(null);
+    setCouponCode('');
+    setCouponError(null);
+  };
 
   const handleUpgrade = async (plan: string) => {
     if (!isOwner) return;
     setLoading(plan);
+    setCouponError(null);
 
     try {
       const res = await fetch('/api/billing/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan, interval }),
+        body: JSON.stringify({
+          plan,
+          interval,
+          ...(couponApplied ? { coupon: couponApplied } : {}),
+        }),
       });
 
       const data = await res.json();
+
+      if (!res.ok) {
+        if (data.error?.toLowerCase().includes('coupon')) {
+          setCouponError(data.error);
+          setCouponApplied(null);
+        }
+        return;
+      }
+
       if (data.url) {
         window.location.href = data.url;
       }
@@ -142,6 +174,8 @@ export function BillingContent({ tenant, usage, isOwner }: BillingContentProps) 
     ? Math.min((usage.bookingsThisMonth / tenant.bookingsQuota) * 100, 100)
     : 0;
 
+  const showFoundingProBanner = tenant.plan === 'starter' && isOwner;
+
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
@@ -163,6 +197,35 @@ export function BillingContent({ tenant, usage, isOwner }: BillingContentProps) 
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
           <Zap className="w-5 h-5 text-amber-600 shrink-0" />
           <p className="text-sm text-amber-900">Checkout was canceled. No changes were made to your plan.</p>
+        </div>
+      )}
+
+      {/* Founding Pro Promo Banner */}
+      {showFoundingProBanner && (
+        <div className="relative bg-gradient-to-r from-violet-600 to-blue-600 rounded-xl p-5 text-white overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-5 h-5" />
+              <span className="text-sm font-bold uppercase tracking-wider">Founding Pro Offer</span>
+            </div>
+            <h3 className="text-xl font-bold mb-1">Get 50% off for 6 months</h3>
+            <p className="text-white/80 text-sm mb-3">
+              Be an early adopter and lock in half-price on any paid plan. Limited time offer for founding professionals.
+            </p>
+            <button
+              onClick={() => {
+                setCouponCode('xelvaGO6');
+                setCouponApplied('xelvaGO6');
+                setCouponError(null);
+                setShowCouponInput(true);
+              }}
+              className="px-4 py-2 bg-white text-violet-700 font-semibold text-sm rounded-lg hover:bg-white/90 transition-colors"
+            >
+              Apply Founding Pro Discount
+            </button>
+          </div>
         </div>
       )}
 
@@ -290,6 +353,77 @@ export function BillingContent({ tenant, usage, isOwner }: BillingContentProps) 
             </button>
           </div>
 
+          {/* Coupon Code Section */}
+          <div className="flex items-center justify-center">
+            {!showCouponInput && !couponApplied && (
+              <button
+                onClick={() => setShowCouponInput(true)}
+                className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition-colors"
+              >
+                <Tag className="w-3.5 h-3.5" />
+                Have a promo code?
+              </button>
+            )}
+
+            {showCouponInput && !couponApplied && (
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={couponCode}
+                    onChange={(e) => {
+                      setCouponCode(e.target.value.toUpperCase());
+                      setCouponError(null);
+                    }}
+                    placeholder="Enter promo code"
+                    className="pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 w-48"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleApplyCoupon();
+                    }}
+                  />
+                </div>
+                <button
+                  onClick={handleApplyCoupon}
+                  disabled={!couponCode.trim()}
+                  className="px-3 py-2 text-sm font-medium bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50"
+                >
+                  Apply
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCouponInput(false);
+                    setCouponCode('');
+                    setCouponError(null);
+                  }}
+                  className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {couponApplied && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+                <Tag className="w-4 h-4 text-emerald-600" />
+                <span className="text-sm font-medium text-emerald-700">
+                  {couponApplied}
+                </span>
+                <span className="text-xs text-emerald-600">applied</span>
+                <button
+                  onClick={handleRemoveCoupon}
+                  className="ml-1 p-0.5 text-emerald-400 hover:text-emerald-600 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {couponError && (
+            <p className="text-center text-sm text-red-500">{couponError}</p>
+          )}
+
           {/* Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {PLANS.map((plan) => {
@@ -330,11 +464,18 @@ export function BillingContent({ tenant, usage, isOwner }: BillingContentProps) 
                     {price === 0 ? (
                       <span className="text-3xl font-bold text-slate-900">Free</span>
                     ) : (
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold text-slate-900">
-                          ${interval === 'annual' ? price.toFixed(0) : price}
-                        </span>
-                        <span className="text-sm text-slate-500">/mo</span>
+                      <div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-3xl font-bold text-slate-900">
+                            ${interval === 'annual' ? price.toFixed(0) : price}
+                          </span>
+                          <span className="text-sm text-slate-500">/mo</span>
+                        </div>
+                        {couponApplied && (
+                          <p className="text-xs text-violet-600 font-medium mt-0.5">
+                            50% off for 6 months with coupon
+                          </p>
+                        )}
                       </div>
                     )}
                     {interval === 'annual' && price > 0 && (
@@ -379,9 +520,13 @@ export function BillingContent({ tenant, usage, isOwner }: BillingContentProps) 
                     <button
                       onClick={() => handleUpgrade(plan.key)}
                       disabled={loading === plan.key}
-                      className="w-full py-2.5 text-sm font-medium rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                      className={`w-full py-2.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${
+                        couponApplied
+                          ? 'bg-violet-600 text-white hover:bg-violet-700'
+                          : 'bg-slate-900 text-white hover:bg-slate-800'
+                      }`}
                     >
-                      {loading === plan.key ? 'Loading...' : 'Upgrade'}
+                      {loading === plan.key ? 'Loading...' : couponApplied ? 'Upgrade with discount' : 'Upgrade'}
                       {loading !== plan.key && <ArrowRight className="w-4 h-4" />}
                     </button>
                   )}

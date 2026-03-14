@@ -33,6 +33,8 @@ export const PLANS = {
       customCancellationPolicy: false,
       priorityEmail: false,
       priorityChat: false,
+      respondToReviews: false,
+      removeReviews: false,
     },
   },
   growth: {
@@ -47,7 +49,7 @@ export const PLANS = {
       maxStaff: 1,
       maxServices: Infinity,
       smsPerMonth: 50,
-      branding: true,         // logo + colors, "Powered by BookBetter" stays
+      branding: false,
       whiteLabel: false,
       customDomain: false,
       brandedComms: false,
@@ -58,6 +60,8 @@ export const PLANS = {
       customCancellationPolicy: true,
       priorityEmail: true,
       priorityChat: false,
+      respondToReviews: true,
+      removeReviews: true,
     },
   },
   business: {
@@ -83,6 +87,8 @@ export const PLANS = {
       customCancellationPolicy: true,
       priorityEmail: true,
       priorityChat: true,
+      respondToReviews: true,
+      removeReviews: true,
     },
     extraStaffPriceMonthly: 1000, // $10/mo per extra staff beyond 5
     extraStaffPriceIdMonthly: process.env.STRIPE_EXTRA_STAFF_MONTHLY_PRICE_ID || null,

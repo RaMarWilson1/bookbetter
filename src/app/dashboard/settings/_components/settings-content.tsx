@@ -37,6 +37,7 @@ interface SettingsContentProps {
     cancellationWindowHours: number | null;
     lateCancellationFeeCents: number | null;
     cancellationPolicyText: string | null;
+    showPoweredBy: boolean;
   } | null;
 }
 
@@ -487,12 +488,14 @@ export function SettingsContent({ user, tenant }: SettingsContentProps) {
       {tenant && (
         <BrandingSettings
           tenantId={tenant.id}
+          plan={tenant.plan}
           initialData={{
             primaryColor: tenant.primaryColor || '#3B82F6',
             secondaryColor: tenant.secondaryColor || '#10B981',
             logo: tenant.logo,
             name: tenant.name,
             slug: tenant.slug,
+            showPoweredBy: tenant.showPoweredBy ?? true,
           }}
         />
       )}

@@ -14,7 +14,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { plan, interval } = body as { plan: PlanKey; interval: 'monthly' | 'annual' };
+    const { plan, interval, coupon } = body as {
+      plan: PlanKey;
+      interval: 'monthly' | 'annual';
+      coupon?: string;
+    };
 
     // Validate plan
     if (!plan || !PLANS[plan]) {
@@ -87,11 +91,47 @@ export async function POST(req: NextRequest) {
     // Build base URL
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
 
+    // Validate coupon if provided
+    let validCouponId: string | undefined;
+    if (coupon && coupon.trim()) {
+      try {
+        // Try as a promotion code first (user-facing codes)
+        const promoCodes = await stripe.promotionCodes.list({
+          code: coupon.trim(),
+          active: true,
+          limit: 1,
+        });
+
+        if (promoCodes.data.length > 0) {
+          // Use the promotion code's underlying coupon
+          const promoCoupon = promoCodes.data[0].promotion.coupon;
+          validCouponId = typeof promoCoupon === 'string' ? promoCoupon : promoCoupon?.id;
+        } else {
+          // Try as a direct coupon ID
+          const stripeCoupon = await stripe.coupons.retrieve(coupon.trim());
+          if (stripeCoupon && stripeCoupon.valid) {
+            validCouponId = stripeCoupon.id;
+          }
+        }
+      } catch {
+        // Invalid coupon — Stripe throws if coupon doesn't exist
+      }
+
+      if (coupon.trim() && !validCouponId) {
+        return NextResponse.json({ error: 'Invalid or expired coupon code' }, { status: 400 });
+      }
+    }
+
     // Create Checkout Session
+    // If a coupon was provided, apply it directly via discounts
+    // Otherwise, allow users to enter promo codes on the Stripe checkout page
     const checkoutSession = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
+      ...(validCouponId
+        ? { discounts: [{ coupon: validCouponId }] }
+        : { allow_promotion_codes: true }),
       success_url: `${baseUrl}/dashboard/settings/billing?success=true`,
       cancel_url: `${baseUrl}/dashboard/settings/billing?canceled=true`,
       subscription_data: {

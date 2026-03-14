@@ -24,7 +24,24 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { primaryColor, secondaryColor, logo } = body;
+    const { primaryColor, secondaryColor, logo, showPoweredBy } = body;
+
+    // Check plan for showPoweredBy gating — Starter always shows badge
+    let poweredByValue: boolean | undefined;
+    if (showPoweredBy !== undefined) {
+      const [tenant] = await db
+        .select({ plan: tenants.plan })
+        .from(tenants)
+        .where(eq(tenants.id, staff.tenantId))
+        .limit(1);
+
+      if (tenant?.plan === 'starter' && showPoweredBy === false) {
+        // Starter can't disable — silently ignore
+        poweredByValue = undefined;
+      } else {
+        poweredByValue = showPoweredBy;
+      }
+    }
 
     await db
       .update(tenants)
@@ -32,6 +49,7 @@ export async function PUT(req: NextRequest) {
         primaryColor: primaryColor || '#3B82F6',
         secondaryColor: secondaryColor || '#10B981',
         logo: logo || null,
+        ...(poweredByValue !== undefined ? { showPoweredBy: poweredByValue } : {}),
         updatedAt: new Date(),
       })
       .where(eq(tenants.id, staff.tenantId));

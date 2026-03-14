@@ -1,4 +1,5 @@
 // src/proxy.ts
+
 import { auth } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 
@@ -7,7 +8,7 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
 
   // Protected routes
-  const protectedPaths = ['/dashboard', '/onboarding'];
+  const protectedPaths = ['/dashboard', '/onboarding', '/my-bookings'];
   const isProtected = protectedPaths.some((path) => pathname.startsWith(path));
 
   // Auth pages (redirect if already logged in)
@@ -41,5 +42,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/onboarding/:path*', '/auth/:path*'],
+  matcher: ['/dashboard/:path*', '/onboarding/:path*', '/auth/:path*', '/my-bookings/:path*'],
 };

@@ -56,6 +56,7 @@ export default async function SettingsPage() {
         cancellationWindowHours: tenants.cancellationWindowHours,
         lateCancellationFeeCents: tenants.lateCancellationFeeCents,
         cancellationPolicyText: tenants.cancellationPolicyText,
+        showPoweredBy: tenants.showPoweredBy,
       })
       .from(tenants)
       .where(eq(tenants.id, staff.tenantId))

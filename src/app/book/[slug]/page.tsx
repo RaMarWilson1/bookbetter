@@ -1,7 +1,7 @@
 // src/app/book/[slug]/page.tsx
 import { db } from '@/db';
 import { tenants, services, availabilityTemplates, availabilityExceptions, reviews, bookings } from '@/db/schema';
-import { eq, and, avg, count, gte } from 'drizzle-orm';
+import { eq, and, avg, count, gte, desc, ne, or, isNull } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import { BookingFlow } from './_components/booking-flow';
 import type { Metadata } from 'next';
@@ -35,14 +35,32 @@ async function getBusinessData(slug: string) {
       )
     );
 
-  // Get review stats
+  // Get review stats (only approved/visible reviews)
+  const approvedFilter = or(eq(reviews.approved, true), isNull(reviews.approved));
+
   const [reviewStats] = await db
     .select({
       avgRating: avg(reviews.rating),
       totalReviews: count(reviews.id),
     })
     .from(reviews)
-    .where(eq(reviews.tenantId, tenant.id));
+    .where(and(eq(reviews.tenantId, tenant.id), approvedFilter));
+
+  // Get recent reviews with client names (only approved/visible)
+  const recentReviews = await db
+    .select({
+      id: reviews.id,
+      rating: reviews.rating,
+      comment: reviews.comment,
+      response: reviews.response,
+      createdAt: reviews.createdAt,
+      clientName: bookings.clientName,
+    })
+    .from(reviews)
+    .leftJoin(bookings, eq(reviews.bookingId, bookings.id))
+    .where(and(eq(reviews.tenantId, tenant.id), approvedFilter))
+    .orderBy(desc(reviews.createdAt))
+    .limit(10);
 
   return {
     tenant,
@@ -53,6 +71,7 @@ async function getBusinessData(slug: string) {
       avgRating: reviewStats?.avgRating ? parseFloat(reviewStats.avgRating) : null,
       totalReviews: reviewStats?.totalReviews || 0,
     },
+    recentReviews,
   };
 }
 
@@ -109,6 +128,7 @@ export default async function BookingPage({
       templates={data.templates}
       exceptions={data.exceptions}
       reviewStats={data.reviewStats}
+      recentReviews={data.recentReviews}
       bookingLimitReached={bookingLimitReached}
     />
   );

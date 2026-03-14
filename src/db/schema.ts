@@ -172,6 +172,9 @@ export const tenants = pgTable('tenants', {
   lateCancellationFeeCents: integer('late_cancellation_fee_cents').default(0),
   cancellationPolicyText: text('cancellation_policy_text'),
   
+  // Display
+  showPoweredBy: boolean('show_powered_by').default(true).notNull(),
+
   // Status
   active: boolean('active').default(true).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
