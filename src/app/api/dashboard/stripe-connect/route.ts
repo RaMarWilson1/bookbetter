@@ -66,7 +66,8 @@ export async function POST(_req: NextRequest) {
     }
 
     // Create an account link for onboarding
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://bookbetter.vercel.app';
+    console.log('Stripe Connect using appUrl:', appUrl);
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
       refresh_url: `${appUrl}/dashboard/settings?stripe_refresh=true`,
@@ -75,10 +76,11 @@ export async function POST(_req: NextRequest) {
     });
 
     return NextResponse.json({ url: accountLink.url });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Stripe Connect onboarding error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to start Stripe onboarding' },
+      { error: 'Failed to start Stripe onboarding', detail: message },
       { status: 500 }
     );
   }
