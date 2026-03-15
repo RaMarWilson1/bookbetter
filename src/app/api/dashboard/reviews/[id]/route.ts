@@ -3,7 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { reviews, staffAccounts, tenants } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and, gte, or, isNotNull } from 'drizzle-orm';
+
+const MONTHLY_MODERATION_LIMIT = 10;
 
 async function getStaffContext(userId: string) {
   const [staff] = await db
@@ -26,6 +28,31 @@ async function getStaffContext(userId: string) {
   return { ...staff, plan: tenant?.plan || 'starter' };
 }
 
+/**
+ * Count how many hide + delete actions this tenant has used this month.
+ * Hides = reviews where hiddenAt is this month
+ * Deletes = reviews where deletedAt is this month (soft-deleted)
+ */
+async function getModerationCountThisMonth(tenantId: string): Promise<number> {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const moderated = await db
+    .select({ id: reviews.id })
+    .from(reviews)
+    .where(
+      and(
+        eq(reviews.tenantId, tenantId),
+        or(
+          gte(reviews.hiddenAt, monthStart),
+          gte(reviews.deletedAt, monthStart)
+        )
+      )
+    );
+
+  return moderated.length;
+}
+
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -42,14 +69,20 @@ export async function PUT(
       return NextResponse.json({ error: 'No business found' }, { status: 404 });
     }
 
-    // Verify review belongs to this tenant
+    // Verify review belongs to this tenant and isn't soft-deleted
     const [review] = await db
-      .select({ id: reviews.id, tenantId: reviews.tenantId })
+      .select({
+        id: reviews.id,
+        tenantId: reviews.tenantId,
+        approved: reviews.approved,
+        hiddenAt: reviews.hiddenAt,
+        deletedAt: reviews.deletedAt,
+      })
       .from(reviews)
       .where(eq(reviews.id, id))
       .limit(1);
 
-    if (!review || review.tenantId !== ctx.tenantId) {
+    if (!review || review.tenantId !== ctx.tenantId || review.deletedAt) {
       return NextResponse.json({ error: 'Review not found' }, { status: 404 });
     }
 
@@ -81,6 +114,31 @@ export async function PUT(
           { status: 403 }
         );
       }
+
+      const isHiding = body.approved === false;
+      const wasAlreadyHidden = review.approved === false;
+
+      // Only count against the cap if this is a NEW hide (not unhiding or re-hiding)
+      if (isHiding && !wasAlreadyHidden) {
+        const usedThisMonth = await getModerationCountThisMonth(ctx.tenantId);
+        if (usedThisMonth >= MONTHLY_MODERATION_LIMIT) {
+          return NextResponse.json(
+            {
+              error: `You\u2019ve reached the limit of ${MONTHLY_MODERATION_LIMIT} review hides/removals this month. This resets on the 1st.`,
+              limit: MONTHLY_MODERATION_LIMIT,
+              used: usedThisMonth,
+            },
+            { status: 429 }
+          );
+        }
+        updateData.hiddenAt = new Date();
+      }
+
+      // If unhiding, clear the hiddenAt (frees up the slot for future counts — optional)
+      if (!isHiding && wasAlreadyHidden) {
+        updateData.hiddenAt = null;
+      }
+
       updateData.approved = body.approved;
     }
 
@@ -134,16 +192,33 @@ export async function DELETE(
 
     // Verify review belongs to this tenant
     const [review] = await db
-      .select({ id: reviews.id, tenantId: reviews.tenantId })
+      .select({ id: reviews.id, tenantId: reviews.tenantId, deletedAt: reviews.deletedAt })
       .from(reviews)
       .where(eq(reviews.id, id))
       .limit(1);
 
-    if (!review || review.tenantId !== ctx.tenantId) {
+    if (!review || review.tenantId !== ctx.tenantId || review.deletedAt) {
       return NextResponse.json({ error: 'Review not found' }, { status: 404 });
     }
 
-    await db.delete(reviews).where(eq(reviews.id, id));
+    // Check monthly cap
+    const usedThisMonth = await getModerationCountThisMonth(ctx.tenantId);
+    if (usedThisMonth >= MONTHLY_MODERATION_LIMIT) {
+      return NextResponse.json(
+        {
+          error: `You\u2019ve reached the limit of ${MONTHLY_MODERATION_LIMIT} review hides/removals this month. This resets on the 1st.`,
+          limit: MONTHLY_MODERATION_LIMIT,
+          used: usedThisMonth,
+        },
+        { status: 429 }
+      );
+    }
+
+    // Soft-delete: mark as deleted instead of removing from DB
+    await db
+      .update(reviews)
+      .set({ deletedAt: new Date(), approved: false })
+      .where(eq(reviews.id, id));
 
     return NextResponse.json({ success: true });
   } catch (error) {

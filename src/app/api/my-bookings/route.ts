@@ -45,6 +45,11 @@ export async function GET() {
         reviewId: reviews.id,
         reviewRating: reviews.rating,
         reviewComment: reviews.comment,
+        // Reschedule proposal
+        proposedStartUtc: bookings.proposedStartUtc,
+        proposedEndUtc: bookings.proposedEndUtc,
+        proposedAt: bookings.proposedAt,
+        rescheduleNote: bookings.rescheduleNote,
       })
       .from(bookings)
       .innerJoin(services, eq(bookings.serviceId, services.id))

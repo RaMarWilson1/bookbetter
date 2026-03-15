@@ -35,8 +35,11 @@ async function getBusinessData(slug: string) {
       )
     );
 
-  // Get review stats (only approved/visible reviews)
-  const approvedFilter = or(eq(reviews.approved, true), isNull(reviews.approved));
+  // Get review stats (only approved/visible reviews, exclude soft-deleted)
+  const approvedFilter = and(
+    or(eq(reviews.approved, true), isNull(reviews.approved)),
+    isNull(reviews.deletedAt)
+  );
 
   const [reviewStats] = await db
     .select({

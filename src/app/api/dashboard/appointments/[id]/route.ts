@@ -18,6 +18,59 @@ export async function PUT(
 
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
 
+    // ─── Reschedule proposal ───────────────────────
+    if (body.action === 'propose_reschedule') {
+      const { proposedStartUtc, proposedEndUtc, rescheduleNote } = body;
+
+      if (!proposedStartUtc || !proposedEndUtc) {
+        return NextResponse.json({ error: 'Proposed start and end times are required' }, { status: 400 });
+      }
+
+      const proposedStart = new Date(proposedStartUtc);
+      const proposedEnd = new Date(proposedEndUtc);
+
+      if (proposedStart < new Date()) {
+        return NextResponse.json({ error: 'Proposed time cannot be in the past' }, { status: 400 });
+      }
+      if (proposedEnd <= proposedStart) {
+        return NextResponse.json({ error: 'End time must be after start time' }, { status: 400 });
+      }
+
+      updateData.proposedStartUtc = proposedStart;
+      updateData.proposedEndUtc = proposedEnd;
+      updateData.proposedAt = new Date();
+      updateData.proposedByUserId = session.user.id;
+      updateData.rescheduleNote = rescheduleNote || null;
+      // Keep current status — client will see the proposal in their dashboard
+      // TODO: Send notification to client (email/SMS) when notification system is built
+
+      const [updated] = await db
+        .update(bookings)
+        .set(updateData)
+        .where(eq(bookings.id, id))
+        .returning();
+
+      return NextResponse.json({ booking: updated });
+    }
+
+    // ─── Clear reschedule proposal (pro cancels their own proposal) ───
+    if (body.action === 'cancel_reschedule') {
+      updateData.proposedStartUtc = null;
+      updateData.proposedEndUtc = null;
+      updateData.proposedAt = null;
+      updateData.proposedByUserId = null;
+      updateData.rescheduleNote = null;
+
+      const [updated] = await db
+        .update(bookings)
+        .set(updateData)
+        .where(eq(bookings.id, id))
+        .returning();
+
+      return NextResponse.json({ booking: updated });
+    }
+
+    // ─── Standard status update ──────────────────────
     if (body.status) {
       updateData.status = body.status;
       if (body.status === 'cancelled') {

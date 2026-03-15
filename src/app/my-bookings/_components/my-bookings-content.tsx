@@ -48,6 +48,10 @@ interface Booking {
   reviewId: string | null;
   reviewRating: number | null;
   reviewComment: string | null;
+  proposedStartUtc: string | null;
+  proposedEndUtc: string | null;
+  proposedAt: string | null;
+  rescheduleNote: string | null;
 }
 
 interface MyBookingsContentProps {
@@ -421,6 +425,11 @@ function BookingCard({ booking, tab }: { booking: Booking; tab: Tab }) {
           </div>
         )}
 
+        {/* Reschedule proposal from pro */}
+        {booking.proposedStartUtc && tab === 'upcoming' && (
+          <RescheduleBanner booking={booking} />
+        )}
+
         {/* Expandable details */}
         <button
           onClick={() => setShowDetails(!showDetails)}
@@ -537,6 +546,69 @@ function BookingCard({ booking, tab }: { booking: Booking; tab: Tab }) {
             <ExternalLink className="w-3 h-3" />
           </Link>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function RescheduleBanner({ booking }: { booking: Booking }) {
+  const [responding, setResponding] = useState(false);
+
+  const proposedDate = new Date(booking.proposedStartUtc!);
+
+  const handleRespond = async (action: 'accept_reschedule' | 'decline_reschedule') => {
+    setResponding(true);
+    try {
+      await fetch(`/api/my-bookings/${booking.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      window.location.reload();
+    } catch {
+      setResponding(false);
+    }
+  };
+
+  return (
+    <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-3">
+      <p className="text-sm font-medium text-purple-800 flex items-center gap-1.5">
+        <RefreshCw className="w-3.5 h-3.5" />
+        New time proposed
+      </p>
+      <p className="text-sm text-purple-700 mt-0.5">
+        {proposedDate.toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+        })}{' '}
+        at{' '}
+        {proposedDate.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+        })}
+      </p>
+      {booking.rescheduleNote && (
+        <p className="text-xs text-purple-600 mt-1 italic">
+          &quot;{booking.rescheduleNote}&quot;
+        </p>
+      )}
+      <div className="flex items-center gap-2 mt-2.5">
+        <button
+          onClick={() => handleRespond('accept_reschedule')}
+          disabled={responding}
+          className="px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50"
+        >
+          {responding ? 'Updating...' : 'Accept New Time'}
+        </button>
+        <Link
+          href={`/book/${booking.tenantSlug}`}
+          onClick={() => handleRespond('decline_reschedule')}
+          className="px-3 py-1.5 bg-white border border-purple-200 text-purple-700 text-xs font-medium rounded-md hover:bg-purple-50 transition-colors flex items-center gap-1"
+        >
+          <RefreshCw className="w-3 h-3" />
+          Reschedule
+        </Link>
       </div>
     </div>
   );

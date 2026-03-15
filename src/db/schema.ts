@@ -289,6 +289,12 @@ export const bookings = pgTable('bookings', {
   cancellationReason: text('cancellation_reason'),
   reminderSent24h: boolean('reminder_sent_24h').default(false),
   reminderSent2h: boolean('reminder_sent_2h').default(false),
+  // Reschedule proposal (pro proposes, client accepts/declines)
+  proposedStartUtc: timestamp('proposed_start_utc', { mode: 'date' }),
+  proposedEndUtc: timestamp('proposed_end_utc', { mode: 'date' }),
+  proposedAt: timestamp('proposed_at', { mode: 'date' }),
+  proposedByUserId: uuid('proposed_by_user_id').references(() => users.id),
+  rescheduleNote: text('reschedule_note'),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
 }, (table) => ({
@@ -336,6 +342,8 @@ export const reviews = pgTable('reviews', {
   respondedAt: timestamp('responded_at', { mode: 'date' }),
   flagged: boolean('flagged').default(false),
   approved: boolean('approved').default(true),
+  hiddenAt: timestamp('hidden_at', { mode: 'date' }),
+  deletedAt: timestamp('deleted_at', { mode: 'date' }),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
 }, (table) => ({
   tenantIdx: index('reviews_tenant_idx').on(table.tenantId),

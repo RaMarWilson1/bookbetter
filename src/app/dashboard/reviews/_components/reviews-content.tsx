@@ -32,18 +32,23 @@ interface ReviewsContentProps {
   reviews: Review[];
   plan: string;
   role: string;
+  moderationUsed: number;
+  moderationLimit: number;
 }
 
-export function ReviewsContent({ reviews, plan, role }: ReviewsContentProps) {
+export function ReviewsContent({ reviews, plan, role, moderationUsed, moderationLimit }: ReviewsContentProps) {
   const router = useRouter();
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
   const [responseText, setResponseText] = useState('');
   const [loading, setLoading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [error, setError] = useState('');
 
   const canRespond = plan !== 'starter';
   const canRemove = plan !== 'starter' && role === 'owner';
   const isStarter = plan === 'starter';
+  const moderationRemaining = moderationLimit - moderationUsed;
+  const atLimit = moderationRemaining <= 0;
 
   const visibleReviews = reviews;
   const hiddenCount = reviews.filter((r) => r.approved === false).length;
@@ -74,12 +79,18 @@ export function ReviewsContent({ reviews, plan, role }: ReviewsContentProps) {
 
   const handleToggleVisibility = async (id: string, currentlyApproved: boolean | null) => {
     setLoading(true);
+    setError('');
     try {
-      await fetch(`/api/dashboard/reviews/${id}`, {
+      const res = await fetch(`/api/dashboard/reviews/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ approved: !(currentlyApproved ?? true) }),
       });
+      if (res.status === 429) {
+        const data = await res.json();
+        setError(data.error);
+        return;
+      }
       router.refresh();
     } catch {
       // silently fail
@@ -90,10 +101,17 @@ export function ReviewsContent({ reviews, plan, role }: ReviewsContentProps) {
 
   const handleDelete = async (id: string) => {
     setLoading(true);
+    setError('');
     try {
-      await fetch(`/api/dashboard/reviews/${id}`, {
+      const res = await fetch(`/api/dashboard/reviews/${id}`, {
         method: 'DELETE',
       });
+      if (res.status === 429) {
+        const data = await res.json();
+        setError(data.error);
+        setConfirmDelete(null);
+        return;
+      }
       setConfirmDelete(null);
       router.refresh();
     } catch {
@@ -130,7 +148,7 @@ export function ReviewsContent({ reviews, plan, role }: ReviewsContentProps) {
               Upgrade to respond to reviews and manage visibility
             </p>
             <p className="text-xs text-blue-700/70 mt-0.5">
-              Growth plan lets you respond to reviews and hide ones you don&apos;t want shown. Build trust with potential clients.
+              Growth plan lets you respond to reviews and hide ones you don't want shown. Build trust with potential clients.
             </p>
             <Link
               href="/dashboard/settings/billing"
@@ -145,7 +163,7 @@ export function ReviewsContent({ reviews, plan, role }: ReviewsContentProps) {
 
       {/* Stats */}
       {reviews.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           <div className="bg-white rounded-xl border border-slate-200/60 p-5">
             <p className="text-3xl font-bold text-slate-900">{avgRating}</p>
             <p className="text-sm text-slate-500 mt-1">Average rating</p>
@@ -167,6 +185,38 @@ export function ReviewsContent({ reviews, plan, role }: ReviewsContentProps) {
               <p className="text-sm text-slate-500 mt-1">Hidden</p>
             </div>
           )}
+          {canRemove && (
+            <div className={`bg-white rounded-xl border p-5 ${atLimit ? 'border-amber-200 bg-amber-50/50' : 'border-slate-200/60'}`}>
+              <p className={`text-3xl font-bold ${atLimit ? 'text-amber-600' : 'text-slate-900'}`}>
+                {moderationRemaining}
+              </p>
+              <p className="text-sm text-slate-500 mt-1">
+                Hides/removals left
+              </p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {moderationUsed}/{moderationLimit} used this month
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Error banner */}
+      {error && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+          <Lock className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-amber-900">{error}</p>
+            <p className="text-xs text-amber-700/70 mt-0.5">
+              Unhiding a review frees up that slot. The limit resets on the 1st of each month.
+            </p>
+          </div>
+          <button
+            onClick={() => setError('')}
+            className="text-amber-400 hover:text-amber-600 ml-auto shrink-0"
+          >
+            ×
+          </button>
         </div>
       )}
 
@@ -218,17 +268,23 @@ export function ReviewsContent({ reviews, plan, role }: ReviewsContentProps) {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleToggleVisibility(review.id, review.approved)}
-                        disabled={loading}
-                        className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                        title={isHidden ? 'Show on booking page' : 'Hide from booking page'}
+                        disabled={loading || (!isHidden && atLimit)}
+                        className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        title={
+                          !isHidden && atLimit
+                            ? 'Monthly hide limit reached'
+                            : isHidden
+                            ? 'Show on booking page'
+                            : 'Hide from booking page'
+                        }
                       >
                         {isHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                       </button>
                       <button
                         onClick={() => setConfirmDelete(review.id)}
-                        disabled={loading}
-                        className="p-1.5 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                        title="Delete review"
+                        disabled={loading || atLimit}
+                        className="p-1.5 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        title={atLimit ? 'Monthly removal limit reached' : 'Delete review'}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

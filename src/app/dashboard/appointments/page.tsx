@@ -31,6 +31,11 @@ async function getAppointments(userId: string) {
       serviceName: services.name,
       serviceDuration: services.durationMinutes,
       servicePriceCents: services.priceCents,
+      // Reschedule proposal fields
+      proposedStartUtc: bookings.proposedStartUtc,
+      proposedEndUtc: bookings.proposedEndUtc,
+      proposedAt: bookings.proposedAt,
+      rescheduleNote: bookings.rescheduleNote,
     })
     .from(bookings)
     .leftJoin(services, eq(bookings.serviceId, services.id))
