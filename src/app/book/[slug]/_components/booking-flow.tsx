@@ -40,6 +40,14 @@ interface Tenant {
   logo: string | null;
   plan: string;
   showPoweredBy: boolean;
+  bio: string | null;
+  coverImage: string | null;
+  galleryImages: string | null;
+  socialInstagram: string | null;
+  socialFacebook: string | null;
+  socialTiktok: string | null;
+  socialTwitter: string | null;
+  socialWebsite: string | null;
 }
 
 interface Service {
@@ -390,6 +398,18 @@ export function BookingFlow({
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-6 sm:py-10">
+        {/* Cover Image */}
+        {step === 0 && tenant.coverImage && (
+          <div className="rounded-xl overflow-hidden mb-6 -mt-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={tenant.coverImage}
+              alt={`${tenant.name} cover`}
+              className="w-full h-40 sm:h-52 object-cover"
+            />
+          </div>
+        )}
+
         {/* Business Header */}
         {step < 4 && (
           <div className="mb-8">
@@ -417,8 +437,69 @@ export function BookingFlow({
                 </span>
               )}
             </div>
+
+            {/* Social Links */}
+            {step === 0 && (tenant.socialInstagram || tenant.socialFacebook || tenant.socialTiktok || tenant.socialTwitter || tenant.socialWebsite) && (
+              <div className="flex items-center gap-2 mt-3">
+                {tenant.socialInstagram && (
+                  <a href={tenant.socialInstagram} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+                    <svg className="w-4 h-4 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg>
+                  </a>
+                )}
+                {tenant.socialFacebook && (
+                  <a href={tenant.socialFacebook} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+                    <svg className="w-4 h-4 text-slate-600" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>
+                  </a>
+                )}
+                {tenant.socialTiktok && (
+                  <a href={tenant.socialTiktok} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+                    <svg className="w-4 h-4 text-slate-600" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1v-3.49a6.37 6.37 0 0 0-.79-.05A6.34 6.34 0 0 0 3.15 15a6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.89a8.28 8.28 0 0 0 4.85 1.56v-3.5a4.85 4.85 0 0 1-1.09-.26z" /></svg>
+                  </a>
+                )}
+                {tenant.socialTwitter && (
+                  <a href={tenant.socialTwitter} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+                    <svg className="w-4 h-4 text-slate-600" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
+                  </a>
+                )}
+                {tenant.socialWebsite && (
+                  <a href={tenant.socialWebsite} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+                    <svg className="w-4 h-4 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
+                  </a>
+                )}
+              </div>
+            )}
           </div>
         )}
+
+        {/* Bio Section */}
+        {step === 0 && tenant.bio && (
+          <div className="mb-6 bg-white rounded-xl border border-slate-200/60 p-5">
+            <h3 className="text-sm font-semibold text-slate-900 mb-2">About</h3>
+            <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">{tenant.bio}</p>
+          </div>
+        )}
+
+        {/* Gallery */}
+        {step === 0 && tenant.galleryImages && (() => {
+          const images: string[] = JSON.parse(tenant.galleryImages);
+          if (images.length === 0) return null;
+          return (
+            <div className="mb-6">
+              <div className={`grid gap-2 ${images.length === 1 ? 'grid-cols-1' : images.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                {images.map((url, i) => (
+                  <div key={i} className={`rounded-xl overflow-hidden ${images.length === 1 ? 'aspect-video' : 'aspect-square'}`}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={url}
+                      alt={`${tenant.name} gallery ${i + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Progress dots */}
         {step < 4 && (

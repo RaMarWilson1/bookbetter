@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import { User, Building, Link2, LogOut, Save, Copy, Check, Camera, CreditCard } from 'lucide-react';
 import { BrandingSettings } from './branding-settings';
+import { BookingPageSettings } from './booking-page-settings';
 import { CancellationSettings } from './cancellation-settings';
 import { StripeConnectCard } from './stripe-connect-card';
 
@@ -498,6 +499,11 @@ export function SettingsContent({ user, tenant }: SettingsContentProps) {
             showPoweredBy: tenant.showPoweredBy ?? true,
           }}
         />
+      )}
+
+      {/* Booking Page Customization */}
+      {tenant && (
+        <BookingPageSettings slug={tenant.slug} />
       )}
 
       {/* Cancellation Policy */}

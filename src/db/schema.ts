@@ -175,6 +175,16 @@ export const tenants = pgTable('tenants', {
   // Display
   showPoweredBy: boolean('show_powered_by').default(true).notNull(),
 
+  // Booking page customization
+  bio: text('bio'),
+  coverImage: text('cover_image'),
+  galleryImages: text('gallery_images'), // JSON array of URLs
+  socialInstagram: varchar('social_instagram', { length: 255 }),
+  socialFacebook: varchar('social_facebook', { length: 255 }),
+  socialTiktok: varchar('social_tiktok', { length: 255 }),
+  socialTwitter: varchar('social_twitter', { length: 255 }),
+  socialWebsite: varchar('social_website', { length: 255 }),
+
   // Status
   active: boolean('active').default(true).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),

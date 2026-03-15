@@ -7,7 +7,6 @@ import {
   tenants,
   bookings,
   services,
-  reviews,
   paymentIntents,
   availabilityTemplates,
 } from '@/db/schema';
@@ -61,10 +60,6 @@ export async function GET() {
   weekEnd.setDate(weekEnd.getDate() + 7);
 
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastMonthEnd = monthStart;
 
   // ─── Basic stats (all plans) ──────────────────────────
   // Today's bookings
