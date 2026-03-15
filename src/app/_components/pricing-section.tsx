@@ -3,6 +3,29 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { Check, X } from 'lucide-react';
+
+interface Feature {
+  label: string;
+  starter: boolean | string;
+  growth: boolean | string;
+  business: boolean | string;
+}
+
+const features: Feature[] = [
+  { label: 'Bookings per month', starter: 'Up to 15', growth: 'Unlimited', business: 'Unlimited' },
+  { label: 'Staff accounts', starter: 'Solo only', growth: 'Solo only', business: 'Up to 5 (+$10/mo each)' },
+  { label: 'Payments & deposits', starter: true, growth: true, business: true },
+  { label: 'Directory listing', starter: true, growth: true, business: true },
+  { label: 'Booking page customization', starter: true, growth: true, business: true },
+  { label: 'Reschedule proposals', starter: true, growth: true, business: true },
+  { label: 'SMS reminders', starter: false, growth: '50/month', business: '200/month' },
+  { label: 'Respond to reviews', starter: false, growth: true, business: true },
+  { label: 'Hide/remove reviews', starter: false, growth: '10/month', business: '10/month' },
+  { label: 'Remove "Powered by" badge', starter: false, growth: true, business: true },
+  { label: 'Advanced analytics', starter: false, growth: true, business: true },
+  { label: 'Roles & permissions', starter: false, growth: false, business: true },
+];
 
 const plans = [
   {
@@ -12,11 +35,11 @@ const plans = [
     monthlyPrice: 0,
     annualPrice: 0,
     annualTotal: 0,
-    features: [
+    highlights: [
       'Up to 15 bookings/month',
+      'Payments & deposits',
       'Directory listing',
-      'Email reminders',
-      'Basic analytics',
+      'Booking page customization',
     ],
     cta: 'Get started free',
     popular: false,
@@ -29,12 +52,12 @@ const plans = [
     monthlyPrice: 19,
     annualPrice: 15.83,
     annualTotal: 190,
-    features: [
+    highlights: [
       'Unlimited bookings',
-      'Deposits & full pay at booking',
-      'Basic CRM',
-      '50 SMS/month included',
-      'Priority email support',
+      '50 SMS reminders/month',
+      'Respond to & moderate reviews',
+      'Remove "Powered by" badge',
+      'Advanced analytics',
     ],
     cta: 'Start with Growth',
     popular: true,
@@ -47,12 +70,11 @@ const plans = [
     monthlyPrice: 79,
     annualPrice: 65.83,
     annualTotal: 790,
-    features: [
+    highlights: [
       'Everything in Growth',
-      'Up to 5 staff (+$10/mo extra)',
+      'Up to 5 staff (+$10/mo each)',
+      '200 SMS reminders/month',
       'Roles & permissions',
-      'White-label branding',
-      'Advanced analytics',
     ],
     cta: 'Start with Business',
     popular: false,
@@ -60,8 +82,15 @@ const plans = [
   },
 ];
 
+function FeatureValue({ value }: { value: boolean | string }) {
+  if (value === true) return <Check className="w-4 h-4 text-emerald-500" />;
+  if (value === false) return <X className="w-4 h-4 text-slate-300" />;
+  return <span className="text-sm text-slate-700 font-medium">{value}</span>;
+}
+
 export function PricingSection() {
   const [interval, setInterval] = useState<'monthly' | 'annual'>('monthly');
+  const [showComparison, setShowComparison] = useState(false);
 
   return (
     <section id="pricing" className="bg-gray-50 py-24 px-4 sm:px-6 lg:px-8">
@@ -107,6 +136,7 @@ export function PricingSection() {
           </button>
         </div>
 
+        {/* Plan cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {plans.map((plan) => {
             const price = interval === 'annual' ? plan.annualPrice : plan.monthlyPrice;
@@ -151,7 +181,7 @@ export function PricingSection() {
                 </div>
 
                 <ul className="space-y-3 text-sm text-gray-600 mb-8">
-                  {plan.features.map((feature, i) => (
+                  {plan.highlights.map((feature, i) => (
                     <li key={i} className="flex items-start gap-2">
                       <span className="text-green-500 mt-0.5">✓</span>
                       {feature}
@@ -177,6 +207,56 @@ export function PricingSection() {
         <p className="text-center text-sm text-gray-400 mt-6">
           No marketplace commissions. Pass-through Stripe fees only.
         </p>
+
+        {/* Compare all features toggle */}
+        <div className="text-center mt-8">
+          <button
+            onClick={() => setShowComparison(!showComparison)}
+            className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+          >
+            {showComparison ? 'Hide full comparison' : 'Compare all features'}
+          </button>
+        </div>
+
+        {/* Feature comparison table */}
+        {showComparison && (
+          <div className="mt-8 bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="text-left text-sm font-medium text-gray-500 py-4 px-6 w-1/3">Feature</th>
+                    <th className="text-center text-sm font-bold text-gray-900 py-4 px-4">Starter</th>
+                    <th className="text-center text-sm font-bold text-gray-900 py-4 px-4 bg-blue-50/50">Growth</th>
+                    <th className="text-center text-sm font-bold text-gray-900 py-4 px-4">Business</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {features.map((feature, i) => (
+                    <tr key={i} className={i < features.length - 1 ? 'border-b border-gray-50' : ''}>
+                      <td className="text-sm text-gray-700 py-3.5 px-6">{feature.label}</td>
+                      <td className="text-center py-3.5 px-4">
+                        <div className="flex justify-center">
+                          <FeatureValue value={feature.starter} />
+                        </div>
+                      </td>
+                      <td className="text-center py-3.5 px-4 bg-blue-50/50">
+                        <div className="flex justify-center">
+                          <FeatureValue value={feature.growth} />
+                        </div>
+                      </td>
+                      <td className="text-center py-3.5 px-4">
+                        <div className="flex justify-center">
+                          <FeatureValue value={feature.business} />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
