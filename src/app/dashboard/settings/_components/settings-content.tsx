@@ -102,7 +102,7 @@ export function SettingsContent({ user, tenant }: SettingsContentProps) {
   const [savingSlug, setSavingSlug] = useState(false);
   const [slugError, setSlugError] = useState('');
 
-  const bookingUrl = tenant ? `bookbetter.vercel.app/book/${currentSlug}` : '';
+  const bookingUrl = tenant ? `thebookbetter.com/book/${currentSlug}` : '';
 
   // Clear success message after 3s
   useEffect(() => {
@@ -225,7 +225,7 @@ export function SettingsContent({ user, tenant }: SettingsContentProps) {
               </div>
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                 <div className="flex items-center gap-1 min-w-0">
-                  <span className="text-xs sm:text-sm text-slate-400 shrink-0 truncate">bookbetter.vercel.app/book/</span>
+                  <span className="text-xs sm:text-sm text-slate-400 shrink-0 truncate">thebookbetter.com/book/</span>
                   <input
                     type="text"
                     value={slugInput}

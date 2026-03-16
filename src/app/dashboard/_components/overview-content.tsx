@@ -413,7 +413,7 @@ export function OverviewContent({ userName }: OverviewContentProps) {
           <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl p-5">
             <p className="text-xs text-slate-400 mb-1">Your booking page</p>
             <p className="text-sm text-white font-medium truncate mb-3">
-              bookbetter.vercel.app/book/{data.slug}
+              thebookbetter.com/book/{data.slug}
             </p>
             <a
               href={`/book/${data.slug}`}

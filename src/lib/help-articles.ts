@@ -60,7 +60,7 @@ That's it — your booking page is live and you can start sharing your link.`,
 
 **Step 4: Share your link** — Your booking link is shown on the dashboard overview and in Settings. Copy it and add it to your Instagram bio, send it to clients, or put it on your website.
 
-Your page is live at bookbetter.vercel.app/book/your-slug — clients can start booking right away.`,
+Your page is live at thebookbetter.com/book/your-slug — clients can start booking right away.`,
   },
   {
     slug: 'share-booking-link',
@@ -72,7 +72,7 @@ Your page is live at bookbetter.vercel.app/book/your-slug — clients can start 
 1. **Dashboard overview** — The dark card on the right side shows your booking URL with a "Set up booking page" link.
 2. **Settings page** — The booking link card at the top lets you copy the full URL.
 
-Your link format is: bookbetter.vercel.app/book/your-slug
+Your link format is: thebookbetter.com/book/your-slug
 
 You can change the slug (the part after /book/) in Settings by clicking "Edit link."
 
@@ -376,7 +376,7 @@ Reviews cannot be deleted by the business owner. If you believe a review is frau
 **Custom domain setup:**
 1. Go to Settings → Branding
 2. Enter your desired domain (e.g., book.yourbusiness.com)
-3. Add a CNAME record pointing to bookbetter.vercel.app in your DNS provider
+3. Add a CNAME record pointing to thebookbetter.com in your DNS provider
 4. We'll verify the domain and issue an SSL certificate automatically
 
 Note: Custom domain setup may take up to 24 hours for DNS to propagate.`,

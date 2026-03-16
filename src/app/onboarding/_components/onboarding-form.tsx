@@ -240,7 +240,7 @@ export function OnboardingForm({ userId, userName, userEmail }: OnboardingFormPr
               </label>
               <div className="flex items-center rounded-xl border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500">
                 <span className="px-4 py-3 bg-slate-50 text-sm text-slate-500 border-r border-slate-200 whitespace-nowrap">
-                  bookbetter.vercel.app/book/
+                  thebookbetter.com/book/
                 </span>
                 <input
                   type="text"

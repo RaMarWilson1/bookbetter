@@ -66,7 +66,7 @@ export async function POST(_req: NextRequest) {
     }
 
     // Create an account link for onboarding
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://bookbetter.vercel.app';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://thebookbetter.com';
     console.log('Stripe Connect using appUrl:', appUrl);
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
