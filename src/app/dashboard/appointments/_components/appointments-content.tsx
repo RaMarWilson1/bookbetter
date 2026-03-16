@@ -654,6 +654,66 @@ export function AppointmentsContent({ appointments }: { appointments: Appointmen
                             </button>
                           </div>
                         )}
+
+                        {/* ─── Payment request (list view) ─── */}
+                        {apt.status !== 'cancelled' && apt.paymentStatus === 'unpaid' && (
+                          <div className="pt-3 border-t border-slate-100 space-y-2" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-2 text-sm text-slate-600">
+                              <DollarSign className="w-4 h-4 text-amber-500" />
+                              <span className="font-medium">Payment unpaid</span>
+                              {apt.servicePriceCents && (
+                                <span className="text-slate-400">· {formatPrice(apt.servicePriceCents)}</span>
+                              )}
+                            </div>
+
+                            {paymentLink && requestingPayment === null && selected === apt.id ? (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                                  <Check className="w-3.5 h-3.5" />
+                                  Payment link created &amp; emailed to client
+                                </div>
+                                <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
+                                  <input
+                                    type="text"
+                                    readOnly
+                                    value={paymentLink}
+                                    className="flex-1 text-xs text-slate-600 bg-transparent outline-none truncate"
+                                  />
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={handleCopyLink}
+                                    className="flex-1 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5"
+                                  >
+                                    {linkCopied ? (
+                                      <><Check className="w-3 h-3 text-emerald-500" /> Copied!</>
+                                    ) : (
+                                      <><Copy className="w-3 h-3" /> Copy Link</>
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => handleShareLink(apt)}
+                                    className="flex-1 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5"
+                                  >
+                                    <Share2 className="w-3 h-3" /> Share
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setPaymentLink(null); setLinkCopied(false); handleRequestPayment(apt); }}
+                                disabled={requestingPayment === apt.id}
+                                className="w-full px-3 py-2 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                              >
+                                {requestingPayment === apt.id ? (
+                                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Creating link...</>
+                                ) : (
+                                  <><Send className="w-3.5 h-3.5" /> Send Payment Request</>
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -811,7 +871,7 @@ export function AppointmentsContent({ appointments }: { appointments: Appointmen
             )}
 
             {/* ─── Payment request (completed/confirmed + unpaid) ─── */}
-            {(detailApt.status === 'completed' || detailApt.status === 'confirmed') && detailApt.paymentStatus === 'unpaid' && (
+            {detailApt.status !== 'cancelled' && detailApt.status !== 'no_show' && detailApt.paymentStatus === 'unpaid' && (
               <div className="pt-3 border-t border-slate-100 space-y-3">
                 <div className="flex items-center gap-2 text-sm text-slate-600">
                   <DollarSign className="w-4 h-4 text-amber-500" />
