@@ -20,6 +20,7 @@ import {
   Mail,
   ExternalLink,
 } from 'lucide-react';
+import { NotificationBell } from '@/components/notification-bell';
 
 interface Booking {
   id: string;
@@ -122,13 +123,16 @@ export function MyBookingsContent({ user }: MyBookingsContentProps) {
                 </p>
               </div>
             </div>
-            <Link
-              href="/search"
-              className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors"
-            >
-              <Search className="w-4 h-4" />
-              Book a service
-            </Link>
+            <div className="flex items-center gap-2">
+              <NotificationBell />
+              <Link
+                href="/search"
+                className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors"
+              >
+                <Search className="w-4 h-4" />
+                Book a service
+              </Link>
+            </div>
           </div>
         </div>
       </header>

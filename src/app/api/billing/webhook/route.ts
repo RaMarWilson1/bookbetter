@@ -2,8 +2,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { db } from '@/db';
-import { tenants } from '@/db/schema';
+import { tenants, bookings, paymentIntents } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import type Stripe from 'stripe';
 import type { PlanKey } from '@/lib/stripe';
 
@@ -27,6 +28,19 @@ export async function POST(req: NextRequest) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         const tenantId = session.metadata?.tenantId;
+
+        // Handle SMS pack purchase
+        if (session.metadata?.type === 'sms_pack' && tenantId) {
+          const smsCount = parseInt(session.metadata.smsCount || '100');
+          await db
+            .update(tenants)
+            .set({ smsPackBalance: sql`${tenants.smsPackBalance} + ${smsCount}` })
+            .where(eq(tenants.id, tenantId));
+          console.log(`[Stripe Webhook] SMS pack: +${smsCount} credits for tenant ${tenantId}`);
+          break;
+        }
+
+        // Handle plan subscription
         const plan = session.metadata?.plan as PlanKey;
 
         if (tenantId && plan) {
@@ -115,6 +129,54 @@ export async function POST(req: NextRequest) {
         if (tenant) {
           // TODO: Send email notification about failed payment
           console.warn(`[Stripe Webhook] Payment failed for tenant ${tenant.id}`);
+        }
+        break;
+      }
+
+      case 'payment_intent.succeeded': {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        const bookingId = paymentIntent.metadata?.bookingId;
+        const type = paymentIntent.metadata?.type as 'deposit' | 'full';
+
+        if (bookingId) {
+          // Update payment intent record
+          await db
+            .update(paymentIntents)
+            .set({
+              status: 'succeeded',
+              updatedAt: new Date(),
+            })
+            .where(eq(paymentIntents.stripePaymentIntentId, paymentIntent.id));
+
+          // Update booking status
+          await db
+            .update(bookings)
+            .set({
+              status: 'confirmed',
+              paymentStatus: type === 'deposit' ? 'deposit' : 'paid',
+              updatedAt: new Date(),
+            })
+            .where(eq(bookings.id, bookingId));
+
+          console.log(`[Stripe Webhook] Payment succeeded for booking ${bookingId}`);
+        }
+        break;
+      }
+
+      case 'payment_intent.payment_failed': {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        const bookingId = paymentIntent.metadata?.bookingId;
+
+        if (bookingId) {
+          await db
+            .update(paymentIntents)
+            .set({
+              status: 'failed',
+              updatedAt: new Date(),
+            })
+            .where(eq(paymentIntents.stripePaymentIntentId, paymentIntent.id));
+
+          console.warn(`[Stripe Webhook] Payment failed for booking ${bookingId}`);
         }
         break;
       }

@@ -5,6 +5,7 @@ import { db } from '@/db';
 import { bookings } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { notifyRescheduleProposal, notifyCancellation } from '@/lib/notifications';
+import { notifyInAppRescheduleProposal, notifyInAppCancellation } from '@/lib/in-app-notify';
 
 export async function PUT(
   req: NextRequest,
@@ -62,6 +63,10 @@ export async function PUT(
           proposedStartUtc: proposedStart,
           rescheduleNote: rescheduleNote || undefined,
         }).catch((err) => console.error('[Notifications] Reschedule proposal error:', err));
+
+        // In-app notification for client
+        notifyInAppRescheduleProposal(updated.clientId, 'Your provider', 'appointment')
+          .catch((err) => console.error('[InApp] Reschedule proposal error:', err));
       }
 
       return NextResponse.json({ booking: updated });
@@ -115,6 +120,10 @@ export async function PUT(
         },
         'pro'
       ).catch((err) => console.error('[Notifications] Pro cancellation error:', err));
+
+      // In-app notification for client
+      notifyInAppCancellation(updated.clientId, 'Your provider', 'your appointment', false)
+        .catch((err) => console.error('[InApp] Pro cancellation error:', err));
     }
 
     return NextResponse.json({ booking: updated });

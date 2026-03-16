@@ -2,8 +2,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
-import { bookings, reviews } from '@/db/schema';
+import { bookings, reviews, staffAccounts } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { notifyInAppReviewReceived } from '@/lib/in-app-notify';
 
 export async function POST(
   req: NextRequest,
@@ -88,6 +89,17 @@ export async function POST(
         comment: comment?.trim() || null,
       })
       .returning();
+
+    // In-app notification for pro
+    const [owner] = await db
+      .select({ userId: staffAccounts.userId })
+      .from(staffAccounts)
+      .where(and(eq(staffAccounts.tenantId, booking.tenantId), eq(staffAccounts.role, 'owner')))
+      .limit(1);
+    if (owner) {
+      notifyInAppReviewReceived(owner.userId, session.user.name || 'A client', rating)
+        .catch((err) => console.error('[InApp] Review received error:', err));
+    }
 
     return NextResponse.json({ review }, { status: 201 });
   } catch (error) {

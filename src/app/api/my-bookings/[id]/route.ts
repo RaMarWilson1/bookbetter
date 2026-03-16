@@ -2,9 +2,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
-import { bookings } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { bookings, staffAccounts } from '@/db/schema';
+import { eq, and } from 'drizzle-orm';
 import { notifyRescheduleAccepted, notifyRescheduleDeclined } from '@/lib/notifications';
+import { notifyInAppRescheduleResponse } from '@/lib/in-app-notify';
 
 export async function PUT(
   req: NextRequest,
@@ -69,6 +70,17 @@ export async function PUT(
           startUtc: booking.startUtc, // original time
           newStartUtc: updated.startUtc, // new time
         }).catch((err) => console.error('[Notifications] Reschedule accepted error:', err));
+
+        // In-app notification for pro
+        const [owner] = await db
+          .select({ userId: staffAccounts.userId })
+          .from(staffAccounts)
+          .where(and(eq(staffAccounts.tenantId, updated.tenantId), eq(staffAccounts.role, 'owner')))
+          .limit(1);
+        if (owner) {
+          notifyInAppRescheduleResponse(owner.userId, updated.clientName || 'Client', true)
+            .catch((err) => console.error('[InApp] Reschedule accepted error:', err));
+        }
       }
       return NextResponse.json({ booking: updated });
     }
@@ -100,6 +112,17 @@ export async function PUT(
           serviceId: updated.serviceId,
           startUtc: updated.startUtc,
         }).catch((err) => console.error('[Notifications] Reschedule declined error:', err));
+
+        // In-app notification for pro
+        const [owner] = await db
+          .select({ userId: staffAccounts.userId })
+          .from(staffAccounts)
+          .where(and(eq(staffAccounts.tenantId, updated.tenantId), eq(staffAccounts.role, 'owner')))
+          .limit(1);
+        if (owner) {
+          notifyInAppRescheduleResponse(owner.userId, updated.clientName || 'Client', false)
+            .catch((err) => console.error('[InApp] Reschedule declined error:', err));
+        }
       }
       return NextResponse.json({ booking: updated });
     }

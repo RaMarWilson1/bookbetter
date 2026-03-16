@@ -161,6 +161,9 @@ export const tenants = pgTable('tenants', {
   // Features & limits
   smsQuota: integer('sms_quota').default(0),
   smsUsed: integer('sms_used').default(0),
+  smsPackBalance: integer('sms_pack_balance').default(0), // purchased pack credits
+  smsOverageEnabled: boolean('sms_overage_enabled').default(false), // $0.03/SMS auto-charge
+  smsQuotaResetAt: timestamp('sms_quota_reset_at', { mode: 'date' }), // monthly reset date
   bookingsQuota: integer('bookings_quota').default(15),
   
   // Stripe Connect
@@ -368,6 +371,23 @@ export const notifications = pgTable('notifications', {
   userIdx: index('notifications_user_idx').on(table.userId),
   bookingIdx: index('notifications_booking_idx').on(table.bookingId),
   typeIdx: index('notifications_type_idx').on(table.type),
+}));
+
+// In-App Notifications (bell icon)
+export const inAppNotifications = pgTable('in_app_notifications', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  message: text('message').notNull(),
+  category: varchar('category', { length: 50 }).notNull(), // booking, cancellation, reschedule, review, payment
+  linkUrl: varchar('link_url', { length: 500 }),
+  read: boolean('read').default(false).notNull(),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index('in_app_notif_user_idx').on(table.userId),
+  readIdx: index('in_app_notif_read_idx').on(table.userId, table.read),
 }));
 
 // Staff Invites

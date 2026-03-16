@@ -7,6 +7,7 @@ import { db } from '@/db';
 import { bookings } from '@/db/schema';
 import { eq, and, or, gte, lte } from 'drizzle-orm';
 import { notifyReminder24h } from '@/lib/notifications';
+import { smsReminderClient } from '@/lib/sms-notifications';
 
 export async function GET(req: NextRequest) {
   // Verify cron secret to prevent unauthorized access
@@ -53,6 +54,18 @@ export async function GET(req: NextRequest) {
           serviceId: booking.serviceId,
           startUtc: booking.startUtc,
         });
+
+        // SMS reminder (if client has phone)
+        if (booking.clientPhone) {
+          smsReminderClient({
+            clientPhone: booking.clientPhone,
+            clientId: booking.clientId,
+            tenantId: booking.tenantId,
+            serviceId: booking.serviceId,
+            bookingId: booking.id,
+            startUtc: booking.startUtc,
+          }).catch((err) => console.error(`[Cron/SMS] Reminder failed for ${booking.id}:`, err));
+        }
 
         // Mark as sent
         await db

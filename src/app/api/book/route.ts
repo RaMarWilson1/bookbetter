@@ -5,6 +5,8 @@ import { bookings, services, tenants, users, availabilityExceptions, staffAccoun
 import { eq, and, gte, lte, or, count } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { notifyBookingConfirmation } from '@/lib/notifications';
+import { notifyInAppNewBooking } from '@/lib/in-app-notify';
+import { smsBookingConfirmationClient, smsNewBookingPro } from '@/lib/sms-notifications';
 
 export async function POST(req: NextRequest) {
   try {
@@ -226,6 +228,34 @@ export async function POST(req: NextRequest) {
       serviceId,
       startUtc: startDate,
     }).catch((err) => console.error('[Notifications] Booking confirmation error:', err));
+
+    // In-app notification for pro
+    const [owner] = await db
+      .select({ userId: staffAccounts.userId })
+      .from(staffAccounts)
+      .where(and(eq(staffAccounts.tenantId, tenantId), eq(staffAccounts.role, 'owner')))
+      .limit(1);
+    if (owner) {
+      notifyInAppNewBooking(owner.userId, clientName, service.name)
+        .catch((err) => console.error('[InApp] New booking error:', err));
+    }
+
+    // SMS notifications (fire-and-forget)
+    const smsParams = {
+      clientPhone: clientPhone || '',
+      clientName,
+      tenantId,
+      serviceId,
+      bookingId: booking.id,
+      clientId,
+      startUtc: startDate,
+    };
+    if (clientPhone) {
+      smsBookingConfirmationClient(smsParams)
+        .catch((err) => console.error('[SMS] Booking confirmation error:', err));
+    }
+    smsNewBookingPro(smsParams)
+      .catch((err) => console.error('[SMS] New booking pro error:', err));
 
     return NextResponse.json(
       {
