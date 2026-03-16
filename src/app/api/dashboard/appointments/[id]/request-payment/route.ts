@@ -101,34 +101,29 @@ export async function POST(
       type: 'full',
     };
 
+    // Block if pro hasn't connected Stripe — we don't accept payments on their behalf
+    if (!booking.stripeAccountId || !booking.stripeOnboardingComplete) {
+      return NextResponse.json(
+        { error: 'Connect Stripe first to send payment requests. Go to Settings → Payments to set up Stripe.' },
+        { status: 400 }
+      );
+    }
+
     const successUrl = `${APP_URL}/my-bookings?payment=success`;
     const cancelUrl = `${APP_URL}/my-bookings?payment=cancelled`;
 
-    // If tenant has Stripe Connect, route payment to their account
-    let checkoutSession;
-    if (booking.stripeAccountId && booking.stripeOnboardingComplete) {
-      checkoutSession = await stripe.checkout.sessions.create(
-        {
-          mode: 'payment',
-          line_items: lineItems,
-          customer_email: booking.clientEmail,
-          metadata,
-          success_url: successUrl,
-          cancel_url: cancelUrl,
-          payment_intent_data: { metadata },
-        },
-        { stripeAccount: booking.stripeAccountId }
-      );
-    } else {
-      checkoutSession = await stripe.checkout.sessions.create({
+    const checkoutSession = await stripe.checkout.sessions.create(
+      {
         mode: 'payment',
         line_items: lineItems,
         customer_email: booking.clientEmail,
         metadata,
         success_url: successUrl,
         cancel_url: cancelUrl,
-      });
-    }
+        payment_intent_data: { metadata },
+      },
+      { stripeAccount: booking.stripeAccountId }
+    );
 
     const paymentLink = checkoutSession.url;
 
