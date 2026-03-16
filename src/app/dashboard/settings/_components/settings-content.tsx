@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import {
@@ -19,6 +19,8 @@ import {
   FileText,
   Shield,
   ChevronRight,
+  Bell,
+  MessageSquare,
 } from 'lucide-react';
 import { BrandingSettings } from './branding-settings';
 import { BookingPageSettings } from './booking-page-settings';
@@ -56,7 +58,7 @@ interface SettingsContentProps {
   } | null;
 }
 
-type SettingsTab = 'profile' | 'business' | 'branding' | 'booking-page' | 'payments' | 'cancellation';
+type SettingsTab = 'profile' | 'business' | 'branding' | 'booking-page' | 'payments' | 'cancellation' | 'notifications';
 
 const TABS: { id: SettingsTab; label: string; icon: React.ElementType; requiresTenant?: boolean }[] = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -64,12 +66,20 @@ const TABS: { id: SettingsTab; label: string; icon: React.ElementType; requiresT
   { id: 'branding', label: 'Branding', icon: Palette, requiresTenant: true },
   { id: 'booking-page', label: 'Booking Page', icon: FileText, requiresTenant: true },
   { id: 'payments', label: 'Payments', icon: CreditCard },
+  { id: 'notifications', label: 'Notifications', icon: Bell, requiresTenant: true },
   { id: 'cancellation', label: 'Cancellation', icon: Shield, requiresTenant: true },
 ];
 
 export function SettingsContent({ user, tenant }: SettingsContentProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<SettingsTab>(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && TABS.some((t) => t.id === tabParam)) {
+      return tabParam as SettingsTab;
+    }
+    return 'profile';
+  });
 
   // Profile form
   const [profileForm, setProfileForm] = useState({
@@ -101,6 +111,74 @@ export function SettingsContent({ user, tenant }: SettingsContentProps) {
   const [editingSlug, setEditingSlug] = useState(false);
   const [savingSlug, setSavingSlug] = useState(false);
   const [slugError, setSlugError] = useState('');
+
+  // SMS / Notifications state
+  const [smsUsage, setSmsUsage] = useState<{
+    plan: string; quota: number; used: number; packBalance: number;
+    remaining: number; percentUsed: number; atWarning: boolean;
+    atLimit: boolean; overageEnabled: boolean;
+  } | null>(null);
+  const [smsLoading, setSmsLoading] = useState(false);
+  const [buyingPack, setBuyingPack] = useState(false);
+  const [togglingOverage, setTogglingOverage] = useState(false);
+  const [smsPackMessage, setSmsPackMessage] = useState<string | null>(null);
+
+  // Check for SMS pack purchase result
+  useEffect(() => {
+    const packResult = searchParams.get('sms_pack');
+    if (packResult === 'success') {
+      setSmsPackMessage('SMS pack purchased! 100 credits have been added to your account.');
+      // Clean up URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete('sms_pack');
+      router.replace(url.pathname + url.search, { scroll: false });
+    } else if (packResult === 'cancelled') {
+      setSmsPackMessage(null);
+    }
+  }, [searchParams, router]);
+
+  // Fetch SMS usage when notifications tab is active
+  useEffect(() => {
+    if (activeTab === 'notifications' && tenant) {
+      setSmsLoading(true);
+      fetch('/api/dashboard/sms')
+        .then((res) => res.json())
+        .then((data) => setSmsUsage(data))
+        .catch((err) => console.error('[Settings] SMS fetch error:', err))
+        .finally(() => setSmsLoading(false));
+    }
+  }, [activeTab, tenant]);
+
+  const handleBuyPack = async () => {
+    setBuyingPack(true);
+    try {
+      const res = await fetch('/api/dashboard/sms/buy-pack', { method: 'POST' });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch (err) {
+      console.error('[Settings] Buy pack error:', err);
+    } finally {
+      setBuyingPack(false);
+    }
+  };
+
+  const handleToggleOverage = async () => {
+    if (!smsUsage) return;
+    setTogglingOverage(true);
+    try {
+      const res = await fetch('/api/dashboard/sms', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ smsOverageEnabled: !smsUsage.overageEnabled }),
+      });
+      const data = await res.json();
+      setSmsUsage(data);
+    } catch (err) {
+      console.error('[Settings] Overage toggle error:', err);
+    } finally {
+      setTogglingOverage(false);
+    }
+  };
 
   const bookingUrl = tenant ? `thebookbetter.com/book/${currentSlug}` : '';
 
@@ -626,6 +704,149 @@ export function SettingsContent({ user, tenant }: SettingsContentProps) {
                 cancellationPolicyText: tenant.cancellationPolicyText ?? null,
               }}
             />
+          )}
+
+          {/* Notifications / SMS */}
+          {activeTab === 'notifications' && tenant && (
+            <div className="space-y-6">
+              {/* SMS pack purchase success */}
+              {smsPackMessage && (
+                <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                  <div className="flex items-center gap-2 text-sm text-green-700">
+                    <Check className="w-4 h-4" />
+                    {smsPackMessage}
+                  </div>
+                  <button
+                    onClick={() => setSmsPackMessage(null)}
+                    className="text-green-500 hover:text-green-700 text-sm"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+
+              {/* Email Notifications */}
+              <div className="bg-white rounded-xl border border-slate-200 p-6">
+                <h2 className="text-base font-semibold text-slate-900 mb-1">Email notifications</h2>
+                <p className="text-sm text-slate-500 mb-4">
+                  Automatic emails are sent for booking confirmations, cancellations, reschedule proposals, 24-hour reminders, and review requests.
+                </p>
+                <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 rounded-lg px-3 py-2">
+                  <Check className="w-4 h-4" />
+                  Email notifications are active
+                </div>
+              </div>
+
+              {/* SMS Notifications */}
+              <div className="bg-white rounded-xl border border-slate-200 p-6">
+                <div className="flex items-center gap-2 mb-1">
+                  <MessageSquare className="w-4 h-4 text-slate-700" />
+                  <h2 className="text-base font-semibold text-slate-900">SMS notifications</h2>
+                </div>
+                <p className="text-sm text-slate-500 mb-5">
+                  Text message reminders and confirmations to your clients.
+                </p>
+
+                {smsLoading ? (
+                  <div className="flex items-center justify-center py-8 text-sm text-slate-400">Loading SMS usage...</div>
+                ) : !smsUsage || smsUsage.plan === 'starter' ? (
+                  <div className="bg-slate-50 rounded-lg p-4">
+                    <p className="text-sm text-slate-600 font-medium mb-1">SMS is available on Growth and Business plans</p>
+                    <p className="text-sm text-slate-500">Growth includes 50 SMS/month, Business includes 200 SMS/month.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+                    {/* Usage bar */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-slate-700">Monthly usage</span>
+                        <span className="text-sm text-slate-500">
+                          {smsUsage.used} / {smsUsage.quota} used
+                        </span>
+                      </div>
+                      <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            smsUsage.percentUsed >= 100
+                              ? 'bg-red-500'
+                              : smsUsage.percentUsed >= 80
+                              ? 'bg-amber-500'
+                              : 'bg-blue-500'
+                          }`}
+                          style={{ width: `${Math.min(100, smsUsage.percentUsed)}%` }}
+                        />
+                      </div>
+                      {smsUsage.atWarning && !smsUsage.atLimit && (
+                        <p className="text-xs text-amber-600 mt-1.5">
+                          You&apos;ve used {smsUsage.percentUsed}% of your monthly SMS quota.
+                        </p>
+                      )}
+                      {smsUsage.atLimit && (
+                        <p className="text-xs text-red-600 mt-1.5">
+                          You&apos;ve reached your monthly SMS limit. Buy a pack or enable overage to keep sending.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Pack balance */}
+                    {smsUsage.packBalance > 0 && (
+                      <div className="flex items-center justify-between bg-blue-50 rounded-lg px-4 py-2.5">
+                        <span className="text-sm text-blue-700">Pack credits remaining</span>
+                        <span className="text-sm font-semibold text-blue-700">{smsUsage.packBalance}</span>
+                      </div>
+                    )}
+
+                    {/* Buy pack */}
+                    <div className="flex items-center justify-between bg-slate-50 rounded-lg px-4 py-3">
+                      <div>
+                        <p className="text-sm font-medium text-slate-700">SMS Pack</p>
+                        <p className="text-xs text-slate-500">100 messages for $2.50 ($0.025/SMS)</p>
+                      </div>
+                      <button
+                        onClick={handleBuyPack}
+                        disabled={buyingPack}
+                        className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 disabled:opacity-50 transition-colors"
+                      >
+                        {buyingPack ? 'Loading...' : 'Buy Pack'}
+                      </button>
+                    </div>
+
+                    {/* Overage toggle */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-700">Auto-charge overage</p>
+                        <p className="text-xs text-slate-500">$0.03/SMS after quota is used (slightly higher than pack rate)</p>
+                      </div>
+                      <button
+                        onClick={handleToggleOverage}
+                        disabled={togglingOverage}
+                        className={`relative w-11 h-6 rounded-full transition-colors ${
+                          smsUsage.overageEnabled ? 'bg-blue-500' : 'bg-slate-200'
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                            smsUsage.overageEnabled ? 'translate-x-5' : ''
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* In-App Notifications info */}
+              <div className="bg-white rounded-xl border border-slate-200 p-6">
+                <h2 className="text-base font-semibold text-slate-900 mb-1">In-app notifications</h2>
+                <p className="text-sm text-slate-500">
+                  You&apos;ll see a notification bell in the dashboard header for new bookings, cancellations, reschedule responses, and reviews. Clients see theirs on the My Bookings page.
+                </p>
+                <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 rounded-lg px-3 py-2 mt-3">
+                  <Check className="w-4 h-4" />
+                  In-app notifications are active
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Mobile-only Sign Out */}

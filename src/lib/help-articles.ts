@@ -25,6 +25,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
   { slug: 'team', name: 'Team & Staff', description: 'Invite staff, assign roles, manage your team', icon: '👥' },
   { slug: 'clients', name: 'Clients & Reviews', description: 'Manage your client list and reviews', icon: '⭐' },
   { slug: 'branding', name: 'Branding & White-Label', description: 'Customize colors, logo, and remove BookBetter branding', icon: '🎨' },
+  { slug: 'notifications', name: 'Notifications & SMS', description: 'Email, SMS, and in-app notification settings', icon: '🔔' },
   { slug: 'account', name: 'Account & Security', description: 'Update your profile, password, and security settings', icon: '🔒' },
 ];
 
@@ -183,7 +184,9 @@ On the Starter plan, you can have up to 10 services. Growth and Business plans h
 
 **To change a status:** Click the appointment and use the status dropdown.
 
-**Cancellation:** When you cancel a booking, the client's spot opens back up. If you have a cancellation policy with a late fee, the client will see the fee when they try to cancel within the window. Note: fee collection requires Stripe to be set up.`,
+**Rescheduling:** Instead of cancelling, you can propose a new time. Click the appointment, choose "Propose Reschedule," pick a new date and time, and optionally add a note explaining why. The client gets an email and in-app notification to accept or decline. If they accept, the booking moves to the new time. If they decline, the original time stays.
+
+**Cancellation:** When you cancel a booking, the client receives an email and in-app notification. If you have a cancellation policy with a late fee, the client will see the fee when they try to cancel within the window. Fee collection requires Stripe to be connected.`,
   },
 
   // Payments
@@ -216,33 +219,34 @@ On the Starter plan, you can have up to 10 services. Growth and Business plans h
 
 **Starter (Free)**
 - Up to 15 bookings per month
-- Directory listing so clients can find you
-- Email reminders
-- .ics calendar sends
-- Basic analytics
+- Email notifications (confirmations, reminders, cancellations)
+- Calendar sync (.ics downloads + Google Calendar links)
+- Reschedule proposals
+- Payments and deposits via Stripe
 
 **Growth ($19/month)**
 - Everything in Starter
 - Unlimited bookings
-- Collect deposits or full payments at booking
-- Basic CRM to track client history
-- 50 SMS reminders per month
-- Logo and brand colors on your page
-- Priority email support
+- 50 SMS/month (buy packs or enable overage for more)
+- Logo and brand colors on your booking page
+- Respond to client reviews
+- Hide/remove reviews (up to 10/month)
+- Toggle "Powered by BookBetter" badge
+- Advanced analytics
 
 **Business ($79/month)**
 - Everything in Growth
-- Up to 5 staff members (+$10/mo per extra staff)
-- Individual staff calendars
-- Roles & permissions (Owner, Manager, Staff)
-- Advanced analytics
-- Full white-label (remove "Powered by BookBetter")
-- Custom domain support
-- Branded emails and SMS
+- Up to 5 staff members (+$10/mo per extra)
+- Individual staff calendars with roles (Owner, Manager, Staff)
 - 200 SMS/month included
-- Priority chat support
+- Full white-label (remove all BookBetter branding)
+- Branded email and SMS notifications
 
-**Annual billing** saves you 2 months — Growth is $190/year and Business is $790/year.`,
+**Annual billing** saves ~17% — Growth is $190/year ($15.83/mo) and Business is $790/year ($65.83/mo).
+
+**SMS add-ons** (Growth and Business):
+- SMS Pack: 100 messages for $2.50 ($0.025 each) — buy in Settings → Notifications
+- Overage: $0.03/SMS auto-charged after your monthly quota is used`,
   },
   {
     slug: 'upgrade-plan',
@@ -342,19 +346,19 @@ Only the business owner can promote someone to Manager or demote them to Staff. 
   {
     slug: 'manage-reviews',
     title: 'Managing client reviews',
-    description: 'View and respond to reviews.',
+    description: 'View, respond to, and moderate reviews.',
     category: 'clients',
     content: `Reviews help new clients trust you. Here's how they work:
 
-**Collecting reviews** — After a completed appointment, clients can leave a review on your booking page. They rate 1-5 stars and write an optional comment.
+**Collecting reviews** — About 2 hours after a completed appointment, clients receive an email asking them to leave a review. They can also review directly from their My Bookings page. Reviews include a 1-5 star rating and optional comment.
 
 **Viewing reviews** — Go to Dashboard → Reviews to see all reviews. You can see the client name, rating, comment, and date.
 
-**Responding** — Click on a review to write a public response. This shows on your booking page underneath the review. Be professional — potential clients will see it.
+**Responding** — Growth and Business plans can respond to reviews. Click on a review to write a public response. This shows on your booking page underneath the review. Be professional — potential clients will see it.
 
-**Your rating** — Your overall rating is the average of all reviews and appears on your booking page and in search results.
+**Moderation** — Growth and Business plans can hide or remove reviews (up to 10 per month). Hiding a review keeps it in your dashboard but removes it from your public booking page. Removing soft-deletes it entirely. Unhiding a review frees up a moderation slot. Your monthly moderation count resets on the 1st.
 
-Reviews cannot be deleted by the business owner. If you believe a review is fraudulent or abusive, contact support.`,
+**Your rating** — Your overall rating is the average of all visible reviews and appears on your booking page header.`,
   },
 
   // Branding
@@ -367,19 +371,81 @@ Reviews cannot be deleted by the business owner. If you believe a review is frau
 
 **What's included:**
 - Remove "Powered by BookBetter" from your booking page footer
-- Custom domain support (e.g., book.yourbusiness.com)
 - Branded email notifications (your business name as the sender)
 - Branded SMS notifications
 
 **Logo & colors** are available on Growth and Business plans. Go to Settings → Branding to upload your logo and set your brand color.
 
-**Custom domain setup:**
-1. Go to Settings → Branding
-2. Enter your desired domain (e.g., book.yourbusiness.com)
-3. Add a CNAME record pointing to thebookbetter.com in your DNS provider
-4. We'll verify the domain and issue an SSL certificate automatically
+**"Powered by BookBetter" badge** — On the Starter plan, this is always shown. On Growth and Business, you can toggle it off in Settings → Booking Page.`,
+  },
 
-Note: Custom domain setup may take up to 24 hours for DNS to propagate.`,
+  // Notifications & SMS
+  {
+    slug: 'email-notifications',
+    title: 'Email notifications',
+    description: 'Automatic emails for bookings, reminders, and more.',
+    category: 'notifications',
+    content: `BookBetter automatically sends email notifications for key events. These are always active and cannot be turned off.
+
+**Emails sent to clients:**
+- Booking confirmation — immediately after they book
+- 24-hour reminder — sent the day before their appointment
+- Cancellation notice — when you or they cancel a booking
+- Reschedule proposal — when you propose a new time
+- Review request — about 2 hours after their appointment ends
+
+**Emails sent to you (the pro):**
+- New booking alert — when a client books with you
+- Cancellation notice — when a client cancels
+- Reschedule response — when a client accepts or declines your proposed time
+
+All emails are sent from notifications@thebookbetter.com with your business name in the subject line. You can see delivery status in your Vercel logs.`,
+  },
+  {
+    slug: 'sms-notifications',
+    title: 'SMS text message notifications',
+    description: 'Send text reminders and confirmations to clients.',
+    category: 'notifications',
+    content: `SMS notifications let you send text messages to clients for booking confirmations and reminders. SMS is available on Growth and Business plans.
+
+**Monthly quotas:**
+- Growth plan: 50 SMS/month
+- Business plan: 200 SMS/month
+- Starter plan: no SMS
+
+**When SMS is sent:**
+- Booking confirmation — to the client after they book (if they provided a phone number)
+- 24-hour reminder — the day before their appointment
+- New booking alert — to you when someone books
+- Cancellation notice — to both parties on cancellation
+- Reschedule proposal — to the client when you propose a new time
+
+**Running low on SMS?** You have two options:
+- **Buy an SMS Pack** — 100 messages for $2.50 ($0.025 each). Go to Settings → Notifications and click "Buy Pack."
+- **Enable overage** — Auto-charge at $0.03 per SMS after your quota is used. Toggle this on in Settings → Notifications.
+
+Pack credits carry over month to month. Your monthly quota resets on the 1st.
+
+**SMS usage** is tracked in Settings → Notifications. You'll see a warning at 80% usage and a limit notice at 100%.`,
+  },
+  {
+    slug: 'in-app-notifications',
+    title: 'In-app notification bell',
+    description: 'Real-time alerts in your dashboard.',
+    category: 'notifications',
+    content: `The notification bell appears in the top-right corner of your dashboard and on the client My Bookings page. It shows a badge with your unread count.
+
+**What triggers a notification:**
+- New booking received
+- Booking cancelled (by either party)
+- Reschedule proposal sent to client
+- Client accepted or declined a reschedule
+- New review received
+- Payment received
+
+Click a notification to navigate to the relevant page (appointments, reviews, etc.). You can mark individual notifications as read by clicking them, or click "Mark all read" to clear everything.
+
+Notifications update automatically every 30 seconds — no need to refresh the page.`,
   },
 
   // Account
