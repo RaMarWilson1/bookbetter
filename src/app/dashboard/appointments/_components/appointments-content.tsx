@@ -20,6 +20,11 @@ import {
   X,
   Eye,
   RefreshCw,
+  Send,
+  Loader2,
+  Copy,
+  Share2,
+  Check,
 } from 'lucide-react';
 
 type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
@@ -88,6 +93,9 @@ export function AppointmentsContent({ appointments }: { appointments: Appointmen
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [rescheduleNote, setRescheduleNote] = useState('');
   const [rescheduling, setRescheduling] = useState(false);
+  const [requestingPayment, setRequestingPayment] = useState<string | null>(null);
+  const [paymentLink, setPaymentLink] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const now = new Date();
 
@@ -186,6 +194,66 @@ export function AppointmentsContent({ appointments }: { appointments: Appointmen
       router.refresh();
     } catch {
       // silently fail
+    }
+  };
+
+  const handleRequestPayment = async (apt: Appointment) => {
+    setRequestingPayment(apt.id);
+    setPaymentLink(null);
+    setLinkCopied(false);
+    try {
+      const res = await fetch(`/api/dashboard/appointments/${apt.id}/request-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (res.ok && data.paymentLink) {
+        setPaymentLink(data.paymentLink);
+      } else {
+        alert(data.error || 'Failed to create payment link');
+      }
+    } catch {
+      alert('Something went wrong');
+    } finally {
+      setRequestingPayment(null);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!paymentLink) return;
+    try {
+      await navigator.clipboard.writeText(paymentLink);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      // Fallback for mobile
+      const textArea = document.createElement('textarea');
+      textArea.value = paymentLink;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
+  };
+
+  const handleShareLink = async (apt: Appointment) => {
+    if (!paymentLink) return;
+    const amount = apt.servicePriceCents ? formatPrice(apt.servicePriceCents) : '';
+    const text = `Hi ${apt.clientName || 'there'}, here's your payment link for ${apt.serviceName || 'your appointment'}${amount ? ` (${amount})` : ''}: ${paymentLink}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Payment Request', text });
+      } catch {
+        // User cancelled share
+      }
+    } else {
+      // Fallback — copy the text message
+      await navigator.clipboard.writeText(text);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
     }
   };
 
@@ -345,7 +413,7 @@ export function AppointmentsContent({ appointments }: { appointments: Appointmen
                             {dayApts.map((apt) => (
                               <button
                                 key={apt.id}
-                                onClick={() => setDetailApt(apt)}
+                                onClick={() => { setPaymentLink(null); setLinkCopied(false); setDetailApt(apt); }}
                                 className={`w-full text-left px-1.5 py-1 rounded border-l-2 text-[11px] leading-tight mb-0.5 truncate hover:opacity-80 transition-opacity ${CALENDAR_COLORS[apt.status]}`}
                               >
                                 <span className="font-medium block truncate">{apt.clientName || 'Client'}</span>
@@ -386,7 +454,7 @@ export function AppointmentsContent({ appointments }: { appointments: Appointmen
                         {hourApts.map((apt) => (
                           <button
                             key={apt.id}
-                            onClick={() => setDetailApt(apt)}
+                            onClick={() => { setPaymentLink(null); setLinkCopied(false); setDetailApt(apt); }}
                             className={`w-full text-left px-3 py-2 rounded-lg border-l-3 text-sm hover:opacity-80 transition-opacity ${CALENDAR_COLORS[apt.status]}`}
                           >
                             <div className="flex items-center justify-between">
@@ -739,6 +807,87 @@ export function AppointmentsContent({ appointments }: { appointments: Appointmen
                 >
                   Cancel
                 </button>
+              </div>
+            )}
+
+            {/* ─── Payment request (completed/confirmed + unpaid) ─── */}
+            {(detailApt.status === 'completed' || detailApt.status === 'confirmed') && detailApt.paymentStatus === 'unpaid' && (
+              <div className="pt-3 border-t border-slate-100 space-y-3">
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <DollarSign className="w-4 h-4 text-amber-500" />
+                  <span className="font-medium">Payment unpaid</span>
+                  {detailApt.servicePriceCents && (
+                    <span className="text-slate-400">· {formatPrice(detailApt.servicePriceCents)}</span>
+                  )}
+                </div>
+
+                {!paymentLink ? (
+                  <button
+                    onClick={() => handleRequestPayment(detailApt)}
+                    disabled={requestingPayment === detailApt.id}
+                    className="w-full px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {requestingPayment === detailApt.id ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Creating link...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4" />
+                        Send Payment Request
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                      <Check className="w-3.5 h-3.5" />
+                      Payment link created &amp; emailed to client
+                    </div>
+
+                    {/* Link preview */}
+                    <div className="flex items-center gap-2 p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                      <input
+                        type="text"
+                        readOnly
+                        value={paymentLink}
+                        className="flex-1 text-xs text-slate-600 bg-transparent outline-none truncate"
+                      />
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleCopyLink}
+                        className="flex-1 px-3 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        {linkCopied ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-500" />
+                            Copied!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            Copy Link
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleShareLink(detailApt)}
+                        className="flex-1 px-3 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                        Share
+                      </button>
+                    </div>
+
+                    <p className="text-[11px] text-slate-400 text-center">
+                      Copy the link or share it via text, WhatsApp, etc.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>

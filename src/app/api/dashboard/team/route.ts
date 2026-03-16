@@ -7,6 +7,8 @@ import { eq, and, count } from 'drizzle-orm';
 import { hasPermission, type StaffRole } from '@/lib/plan-gating';
 import { getPlanLimits, type PlanKey } from '@/lib/stripe';
 import { randomBytes } from 'crypto';
+import { sendEmail } from '@/lib/email';
+import { teamInviteEmail } from '@/lib/email-templates';
 
 // GET — list team members + pending invites
 export async function GET() {
@@ -94,7 +96,7 @@ export async function POST(req: NextRequest) {
 
     // Check plan allows multi-staff
     const [tenant] = await db
-      .select({ plan: tenants.plan })
+      .select({ plan: tenants.plan, name: tenants.name })
       .from(tenants)
       .where(eq(tenants.id, staff.tenantId))
       .limit(1);
@@ -220,8 +222,22 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
-    // TODO: Send invite email via Resend with accept link
-    // For now, the invite can be accepted via /invite/[token]
+    // Send invite email via Resend
+    const emailTemplate = teamInviteEmail({
+      inviteeEmail: email.toLowerCase(),
+      businessName: tenant.name || 'a business',
+      role: inviteRole,
+      inviterName: session.user.name || 'Your teammate',
+      token,
+    });
+
+    sendEmail({
+      to: email.toLowerCase(),
+      subject: emailTemplate.subject,
+      html: emailTemplate.html,
+      userId: session.user.id,
+      purpose: 'team_invite',
+    }).catch((err) => console.error('[Team Invite] Email send error:', err));
 
     // Calculate if this invite will trigger extra staff billing
     const INCLUDED_STAFF = 5;

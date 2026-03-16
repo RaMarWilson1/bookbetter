@@ -12,6 +12,7 @@ import {
   Loader2,
   Search,
   ChevronDown,
+  Download,
 } from 'lucide-react';
 
 interface Payment {
@@ -179,13 +180,27 @@ export function PaymentsContent() {
           <h1 className="text-2xl font-bold text-slate-900">Payments</h1>
           <p className="text-sm text-slate-500 mt-1">Track revenue from all sources</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-xl hover:bg-slate-800 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Log Payment
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              const now = new Date();
+              const from = `${now.getFullYear()}-01-01`;
+              const to = now.toISOString().split('T')[0];
+              window.open(`/api/dashboard/payments/export?from=${from}&to=${to}`, '_blank');
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 border border-slate-200 text-slate-700 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-xl hover:bg-slate-800 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Log Payment
+          </button>
+        </div>
       </div>
 
       {/* Summary cards */}

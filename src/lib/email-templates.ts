@@ -326,3 +326,33 @@ export function reviewRequestClient(details: BookingDetails) {
     `, `Share your experience with ${businessName}.`),
   };
 }
+
+// ─── Team Invite ──────────────────────────────────────────────
+
+export function teamInviteEmail(details: {
+  inviteeEmail: string;
+  businessName: string;
+  role: string;
+  inviterName: string;
+  token: string;
+}) {
+  const { businessName, role, inviterName, token } = details;
+  const acceptUrl = `${APP_URL}/invite/${token}`;
+
+  return {
+    subject: `You're invited to join ${businessName} on BookBetter`,
+    html: layout(`
+      <h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#0f172a;">You've been invited!</h1>
+      <p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.5;">
+        ${inviterName} has invited you to join <strong>${businessName}</strong> as a <strong>${role}</strong> on BookBetter.
+      </p>
+      <p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.5;">
+        Accept the invite to start managing your schedule, view appointments, and more.
+      </p>
+      ${button('Accept Invite', acceptUrl)}
+      <p style="margin:16px 0 0;font-size:13px;color:#94a3b8;">
+        This invite expires in 7 days. If you didn't expect this, you can safely ignore it.
+      </p>
+    `, `${inviterName} invited you to join ${businessName}.`),
+  };
+}
