@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { bookings } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { notifyRescheduleAccepted, notifyRescheduleDeclined } from '@/lib/notifications';
 
 export async function PUT(
   req: NextRequest,
@@ -56,7 +57,19 @@ export async function PUT(
         .where(eq(bookings.id, id))
         .returning();
 
-      // TODO: Notify pro that client accepted the new time
+      // Notify pro that client accepted the new time
+      if (updated.clientEmail) {
+        notifyRescheduleAccepted({
+          bookingId: updated.id,
+          clientId: updated.clientId,
+          clientName: updated.clientName || 'Client',
+          clientEmail: updated.clientEmail,
+          tenantId: updated.tenantId,
+          serviceId: updated.serviceId,
+          startUtc: booking.startUtc, // original time
+          newStartUtc: updated.startUtc, // new time
+        }).catch((err) => console.error('[Notifications] Reschedule accepted error:', err));
+      }
       return NextResponse.json({ booking: updated });
     }
 
@@ -76,7 +89,18 @@ export async function PUT(
         .where(eq(bookings.id, id))
         .returning();
 
-      // TODO: Notify pro that client declined the reschedule
+      // Notify pro that client declined the reschedule
+      if (updated.clientEmail) {
+        notifyRescheduleDeclined({
+          bookingId: updated.id,
+          clientId: updated.clientId,
+          clientName: updated.clientName || 'Client',
+          clientEmail: updated.clientEmail,
+          tenantId: updated.tenantId,
+          serviceId: updated.serviceId,
+          startUtc: updated.startUtc,
+        }).catch((err) => console.error('[Notifications] Reschedule declined error:', err));
+      }
       return NextResponse.json({ booking: updated });
     }
 

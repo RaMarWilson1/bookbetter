@@ -148,7 +148,7 @@ export function ReviewsContent({ reviews, plan, role, moderationUsed, moderation
               Upgrade to respond to reviews and manage visibility
             </p>
             <p className="text-xs text-blue-700/70 mt-0.5">
-              Growth plan lets you respond to reviews and hide ones you don't want shown. Build trust with potential clients.
+              Growth plan lets you respond to reviews and hide ones you don&apos;t want shown. Build trust with potential clients.
             </p>
             <Link
               href="/dashboard/settings/billing"

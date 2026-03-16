@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { bookings } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { notifyRescheduleProposal, notifyCancellation } from '@/lib/notifications';
 
 export async function PUT(
   req: NextRequest,
@@ -41,14 +42,27 @@ export async function PUT(
       updateData.proposedAt = new Date();
       updateData.proposedByUserId = session.user.id;
       updateData.rescheduleNote = rescheduleNote || null;
-      // Keep current status — client will see the proposal in their dashboard
-      // TODO: Send notification to client (email/SMS) when notification system is built
 
       const [updated] = await db
         .update(bookings)
         .set(updateData)
         .where(eq(bookings.id, id))
         .returning();
+
+      // Notify client about reschedule proposal
+      if (updated.clientEmail) {
+        notifyRescheduleProposal({
+          bookingId: updated.id,
+          clientId: updated.clientId,
+          clientName: updated.clientName || 'Client',
+          clientEmail: updated.clientEmail,
+          tenantId: updated.tenantId,
+          serviceId: updated.serviceId,
+          startUtc: updated.startUtc,
+          proposedStartUtc: proposedStart,
+          rescheduleNote: rescheduleNote || undefined,
+        }).catch((err) => console.error('[Notifications] Reschedule proposal error:', err));
+      }
 
       return NextResponse.json({ booking: updated });
     }
@@ -85,6 +99,23 @@ export async function PUT(
       .set(updateData)
       .where(eq(bookings.id, id))
       .returning();
+
+    // Notify client when pro cancels
+    if (body.status === 'cancelled' && updated.clientEmail) {
+      notifyCancellation(
+        {
+          bookingId: updated.id,
+          clientId: updated.clientId,
+          clientName: updated.clientName || 'Client',
+          clientEmail: updated.clientEmail,
+          tenantId: updated.tenantId,
+          serviceId: updated.serviceId,
+          startUtc: updated.startUtc,
+          reason: body.reason || undefined,
+        },
+        'pro'
+      ).catch((err) => console.error('[Notifications] Pro cancellation error:', err));
+    }
 
     return NextResponse.json({ booking: updated });
   } catch (error) {

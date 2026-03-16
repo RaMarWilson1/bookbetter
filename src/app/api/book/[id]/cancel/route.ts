@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { bookings, tenants } from '@/db/schema';
 import { eq, and, or } from 'drizzle-orm';
+import { notifyCancellation } from '@/lib/notifications';
 
 export async function POST(
   req: NextRequest,
@@ -86,6 +87,23 @@ export async function POST(
         updatedAt: now,
       })
       .where(eq(bookings.id, id));
+
+    // Send cancellation emails (fire-and-forget)
+    notifyCancellation(
+      {
+        bookingId: booking.id,
+        clientId: booking.clientId,
+        clientName: booking.clientName || 'Client',
+        clientEmail: booking.clientEmail || email.toLowerCase(),
+        tenantId: booking.tenantId,
+        serviceId: booking.serviceId,
+        startUtc: booking.startUtc,
+        reason: isLateCancellation
+          ? `Late cancellation (${hoursUntilAppointment.toFixed(1)}h before)`
+          : undefined,
+      },
+      'client'
+    ).catch((err) => console.error('[Notifications] Cancellation error:', err));
 
     return NextResponse.json({
       message: 'Booking cancelled',

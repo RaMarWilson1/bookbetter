@@ -1,9 +1,10 @@
 // src/app/api/book/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { bookings, services, tenants, users, availabilityExceptions } from '@/db/schema';
+import { bookings, services, tenants, users, availabilityExceptions, staffAccounts } from '@/db/schema';
 import { eq, and, gte, lte, or, count } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
+import { notifyBookingConfirmation } from '@/lib/notifications';
 
 export async function POST(req: NextRequest) {
   try {
@@ -190,8 +191,50 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
+    // Check if payment is required (Growth/Business + Stripe connected + service has price)
+    let paymentRequired = false;
+    if (tenant.plan !== 'starter' && service.priceCents > 0) {
+      // Find the staff member's connected Stripe account (or owner's)
+      const [connectedStaff] = await db
+        .select({
+          stripeAccountId: staffAccounts.stripeAccountId,
+          stripeOnboardingComplete: staffAccounts.stripeOnboardingComplete,
+        })
+        .from(staffAccounts)
+        .where(
+          and(
+            eq(staffAccounts.tenantId, tenantId),
+            eq(staffAccounts.role, 'owner'),
+            eq(staffAccounts.active, true)
+          )
+        )
+        .limit(1);
+
+      paymentRequired = !!(
+        connectedStaff?.stripeAccountId &&
+        connectedStaff?.stripeOnboardingComplete
+      );
+    }
+
+    // Send confirmation emails (fire-and-forget, don't block response)
+    notifyBookingConfirmation({
+      bookingId: booking.id,
+      clientId,
+      clientName,
+      clientEmail: clientEmail.toLowerCase(),
+      tenantId,
+      serviceId,
+      startUtc: startDate,
+    }).catch((err) => console.error('[Notifications] Booking confirmation error:', err));
+
     return NextResponse.json(
-      { booking, message: 'Booking created successfully' },
+      {
+        booking,
+        paymentRequired,
+        message: paymentRequired
+          ? 'Booking created — payment required'
+          : 'Booking created successfully',
+      },
       { status: 201 }
     );
   } catch (error) {

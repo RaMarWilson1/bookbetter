@@ -289,6 +289,7 @@ export const bookings = pgTable('bookings', {
   cancellationReason: text('cancellation_reason'),
   reminderSent24h: boolean('reminder_sent_24h').default(false),
   reminderSent2h: boolean('reminder_sent_2h').default(false),
+  reviewRequestSent: boolean('review_request_sent').default(false),
   // Reschedule proposal (pro proposes, client accepts/declines)
   proposedStartUtc: timestamp('proposed_start_utc', { mode: 'date' }),
   proposedEndUtc: timestamp('proposed_end_utc', { mode: 'date' }),
