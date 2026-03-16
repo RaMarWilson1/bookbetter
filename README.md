@@ -30,7 +30,7 @@ A modern SaaS booking platform for independent service professionals — barbers
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/your-username/bookbetter.git
+git clone https://github.com/ramarwilson1/bookbetter.git
 cd bookbetter
 ```
 
