@@ -52,6 +52,7 @@ interface OverviewData {
   bookingsQuota: number;
   totalClients: number;
   completionRate: number | null;
+  weekRevenue: number;
   todayAppointments: Appointment[];
   setupComplete: {
     hasServices: boolean;
@@ -137,29 +138,29 @@ export function OverviewContent({ userName }: OverviewContentProps) {
       value: String(data.todayBookings),
       icon: Calendar,
       color: 'bg-blue-500/10 text-blue-600',
+      href: '/dashboard/appointments',
     },
-    ...(isStarter
-      ? []
-      : [
-          {
-            label: "This Week's Revenue",
-            value: formatPrice(data.analytics?.weekRevenue || 0),
-            change: revenueChange,
-            icon: DollarSign,
-            color: 'bg-emerald-500/10 text-emerald-600',
-          },
-        ]),
+    {
+      label: "This Week's Revenue",
+      value: formatPrice(data.analytics?.weekRevenue || data.weekRevenue || 0),
+      change: revenueChange,
+      icon: DollarSign,
+      color: 'bg-emerald-500/10 text-emerald-600',
+      href: '/dashboard/payments',
+    },
     {
       label: 'Total Clients',
       value: String(data.totalClients),
       icon: Users,
       color: 'bg-violet-500/10 text-violet-600',
+      href: '/dashboard/clients',
     },
     {
       label: 'Completion Rate',
       value: data.completionRate !== null ? `${data.completionRate}%` : '—',
       icon: TrendingUp,
       color: 'bg-amber-500/10 text-amber-600',
+      href: '/dashboard/appointments',
     },
   ];
 
@@ -245,14 +246,15 @@ export function OverviewContent({ userName }: OverviewContentProps) {
       )}
 
       {/* Stats grid */}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 ${isStarter ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-4`}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat) => {
           const Icon = stat.icon;
           const change = 'change' in stat ? (stat as { change: number | null }).change : null;
           return (
-            <div
+            <Link
               key={stat.label}
-              className="bg-white rounded-xl border border-slate-200/60 p-5 hover:shadow-md hover:border-slate-200 transition-all duration-200"
+              href={stat.href}
+              className="bg-white rounded-xl border border-slate-200/60 p-5 hover:shadow-md hover:border-slate-300 transition-all duration-200 cursor-pointer"
             >
               <div className="flex items-center justify-between mb-3">
                 <div
@@ -274,7 +276,7 @@ export function OverviewContent({ userName }: OverviewContentProps) {
               </div>
               <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
               <p className="text-sm text-slate-500 mt-0.5">{stat.label}</p>
-            </div>
+            </Link>
           );
         })}
       </div>

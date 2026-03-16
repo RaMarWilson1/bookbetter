@@ -6,6 +6,7 @@ import {
   staffAccounts,
   bookings,
   services,
+  payments,
   users,
 } from '@/db/schema';
 import { eq, and, gte, count, sum } from 'drizzle-orm';
@@ -56,23 +57,37 @@ export async function GET(_req: Request) {
       startDate = new Date(now.getFullYear(), now.getMonth(), 1);
     }
 
-    // Total revenue across all staff
+    // Total revenue from payments table (all sources)
     const [totalRevenue] = await db
       .select({
-        total: sum(services.priceCents),
-        count: count(bookings.id),
+        total: sum(payments.amountCents),
+        count: count(payments.id),
       })
-      .from(bookings)
-      .innerJoin(services, eq(bookings.serviceId, services.id))
+      .from(payments)
       .where(
         and(
-          eq(bookings.tenantId, staff.tenantId),
-          gte(bookings.createdAt, startDate),
-          eq(bookings.status, 'completed')
+          eq(payments.tenantId, staff.tenantId),
+          gte(payments.paidAt, startDate)
         )
       );
 
-    // Per-staff breakdown (for multi-staff businesses)
+    // Revenue by method
+    const methodBreakdown = await db
+      .select({
+        method: payments.method,
+        total: sum(payments.amountCents),
+        count: count(),
+      })
+      .from(payments)
+      .where(
+        and(
+          eq(payments.tenantId, staff.tenantId),
+          gte(payments.paidAt, startDate)
+        )
+      )
+      .groupBy(payments.method);
+
+    // Per-staff breakdown (from completed bookings — keeps existing behavior)
     const staffRevenue = await db
       .select({
         staffId: bookings.staffId,
@@ -116,7 +131,12 @@ export async function GET(_req: Request) {
     return NextResponse.json({
       period,
       totalRevenueCents: totalRevenue?.total ? Number(totalRevenue.total) : 0,
-      totalBookings: totalRevenue?.count || 0,
+      totalPayments: totalRevenue?.count || 0,
+      byMethod: methodBreakdown.map((m) => ({
+        method: m.method,
+        totalCents: Number(m.total || 0),
+        count: m.count,
+      })),
       staffBreakdown: staffRevenue.map((s) => ({
         staffId: s.staffId,
         name: s.staffName || 'Unknown',

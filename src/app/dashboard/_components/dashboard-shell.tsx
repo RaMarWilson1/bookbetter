@@ -18,6 +18,7 @@ import {
   X,
   ChevronDown,
   UserPlus,
+  DollarSign,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notification-bell';
 
@@ -37,6 +38,7 @@ const navItems = [
   { label: 'Services', href: '/dashboard/services', icon: Scissors },
   { label: 'Availability', href: '/dashboard/availability', icon: Clock },
   { label: 'Clients', href: '/dashboard/clients', icon: Users },
+  { label: 'Payments', href: '/dashboard/payments', icon: DollarSign },
   { label: 'Reviews', href: '/dashboard/reviews', icon: Star },
   { label: 'Team', href: '/dashboard/team', icon: UserPlus },
 ];

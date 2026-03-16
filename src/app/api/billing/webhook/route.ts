@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { db } from '@/db';
-import { tenants, bookings, paymentIntents } from '@/db/schema';
+import { tenants, bookings, paymentIntents, payments } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 import type Stripe from 'stripe';
@@ -157,6 +157,24 @@ export async function POST(req: NextRequest) {
               updatedAt: new Date(),
             })
             .where(eq(bookings.id, bookingId));
+
+          // Also record in unified payments table for revenue tracking
+          const [booking] = await db
+            .select({ tenantId: bookings.tenantId })
+            .from(bookings)
+            .where(eq(bookings.id, bookingId))
+            .limit(1);
+
+          if (booking) {
+            await db.insert(payments).values({
+              tenantId: booking.tenantId,
+              bookingId,
+              amountCents: paymentIntent.amount,
+              method: 'stripe',
+              paidAt: new Date(),
+              stripePaymentIntentId: paymentIntent.id,
+            }).catch((err) => console.error('[Stripe Webhook] Failed to insert payment record:', err));
+          }
 
           console.log(`[Stripe Webhook] Payment succeeded for booking ${bookingId}`);
         }

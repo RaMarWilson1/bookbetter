@@ -7,6 +7,7 @@ import { auth } from '@/lib/auth';
 import { notifyBookingConfirmation } from '@/lib/notifications';
 import { notifyInAppNewBooking } from '@/lib/in-app-notify';
 import { smsBookingConfirmationClient, smsNewBookingPro } from '@/lib/sms-notifications';
+import { getNotificationPrefs } from '@/lib/notification-prefs';
 
 export async function POST(req: NextRequest) {
   try {
@@ -218,16 +219,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Fetch notification preferences
+    const prefs = await getNotificationPrefs(tenantId);
+
     // Send confirmation emails (fire-and-forget, don't block response)
-    notifyBookingConfirmation({
-      bookingId: booking.id,
-      clientId,
-      clientName,
-      clientEmail: clientEmail.toLowerCase(),
-      tenantId,
-      serviceId,
-      startUtc: startDate,
-    }).catch((err) => console.error('[Notifications] Booking confirmation error:', err));
+    if (prefs.notifyEmailBooking) {
+      notifyBookingConfirmation({
+        bookingId: booking.id,
+        clientId,
+        clientName,
+        clientEmail: clientEmail.toLowerCase(),
+        tenantId,
+        serviceId,
+        startUtc: startDate,
+      }).catch((err) => console.error('[Notifications] Booking confirmation error:', err));
+    }
 
     // In-app notification for pro
     const [owner] = await db
@@ -235,7 +241,7 @@ export async function POST(req: NextRequest) {
       .from(staffAccounts)
       .where(and(eq(staffAccounts.tenantId, tenantId), eq(staffAccounts.role, 'owner')))
       .limit(1);
-    if (owner) {
+    if (owner && prefs.notifyInAppBooking) {
       notifyInAppNewBooking(owner.userId, clientName, service.name)
         .catch((err) => console.error('[InApp] New booking error:', err));
     }
@@ -250,12 +256,14 @@ export async function POST(req: NextRequest) {
       clientId,
       startUtc: startDate,
     };
-    if (clientPhone) {
+    if (clientPhone && prefs.notifySmsBooking) {
       smsBookingConfirmationClient(smsParams)
         .catch((err) => console.error('[SMS] Booking confirmation error:', err));
     }
-    smsNewBookingPro(smsParams)
-      .catch((err) => console.error('[SMS] New booking pro error:', err));
+    if (prefs.notifySmsBooking) {
+      smsNewBookingPro(smsParams)
+        .catch((err) => console.error('[SMS] New booking pro error:', err));
+    }
 
     return NextResponse.json(
       {

@@ -180,6 +180,63 @@ export function SettingsContent({ user, tenant }: SettingsContentProps) {
     }
   };
 
+  // Notification preferences
+  type NotifPrefs = {
+    notifyEmailBooking: boolean;
+    notifyEmailCancellation: boolean;
+    notifyEmailReschedule: boolean;
+    notifyEmailReminder: boolean;
+    notifyEmailReviewRequest: boolean;
+    notifySmsBooking: boolean;
+    notifySmsCancellation: boolean;
+    notifySmsReschedule: boolean;
+    notifySmsReminder: boolean;
+    notifyInAppBooking: boolean;
+    notifyInAppCancellation: boolean;
+    notifyInAppReschedule: boolean;
+    notifyInAppReview: boolean;
+    notifyInAppPayment: boolean;
+  };
+  const [notifPrefs, setNotifPrefs] = useState<NotifPrefs | null>(null);
+  const [notifPrefsLoading, setNotifPrefsLoading] = useState(false);
+  const [notifPrefsSaving, setNotifPrefsSaving] = useState<string | null>(null);
+
+  // Fetch notification preferences when tab is active
+  useEffect(() => {
+    if (activeTab === 'notifications' && tenant && !notifPrefs) {
+      setNotifPrefsLoading(true);
+      fetch('/api/dashboard/settings/notifications')
+        .then((res) => res.json())
+        .then((data) => {
+          if (!data.error) setNotifPrefs(data);
+        })
+        .catch((err) => console.error('[Settings] NotifPrefs fetch error:', err))
+        .finally(() => setNotifPrefsLoading(false));
+    }
+  }, [activeTab, tenant, notifPrefs]);
+
+  const handleToggleNotifPref = async (key: string) => {
+    if (!notifPrefs || !(key in notifPrefs)) return;
+    const prefKey = key as keyof NotifPrefs;
+    const newValue = !notifPrefs[prefKey];
+    // Optimistic update
+    setNotifPrefs({ ...notifPrefs, [prefKey]: newValue });
+    setNotifPrefsSaving(key);
+    try {
+      await fetch('/api/dashboard/settings/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [prefKey]: newValue }),
+      });
+    } catch (err) {
+      // Revert on error
+      setNotifPrefs({ ...notifPrefs, [prefKey]: !newValue });
+      console.error('[Settings] NotifPref toggle error:', err);
+    } finally {
+      setNotifPrefsSaving(null);
+    }
+  };
+
   const bookingUrl = tenant ? `thebookbetter.com/book/${currentSlug}` : '';
 
   // Clear success message after 3s
@@ -846,6 +903,138 @@ export function SettingsContent({ user, tenant }: SettingsContentProps) {
                   In-app notifications are active
                 </div>
               </div>
+
+              {/* Notification Preferences */}
+              <div className="bg-white rounded-xl border border-slate-200 p-6">
+                <h2 className="text-base font-semibold text-slate-900 mb-1">Notification preferences</h2>
+                <p className="text-sm text-slate-500 mb-5">
+                  Choose which notifications you receive for each event. These settings apply to notifications sent to you (the pro), not to your clients.
+                </p>
+
+                {notifPrefsLoading ? (
+                  <div className="flex items-center justify-center py-8 text-sm text-slate-400">Loading preferences...</div>
+                ) : notifPrefs ? (
+                  <div className="space-y-1">
+                    {/* Header row */}
+                    <div className="grid grid-cols-[1fr_60px_60px_60px] gap-2 items-center pb-2 border-b border-slate-100">
+                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Event</span>
+                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wider text-center">Email</span>
+                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wider text-center">SMS</span>
+                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wider text-center">In-app</span>
+                    </div>
+
+                    {/* New booking */}
+                    <NotifPrefRow
+                      label="New booking"
+                      emailKey="notifyEmailBooking"
+                      smsKey="notifySmsBooking"
+                      inAppKey="notifyInAppBooking"
+                      prefs={notifPrefs}
+                      saving={notifPrefsSaving}
+                      onToggle={handleToggleNotifPref}
+                      hasSms={smsUsage?.plan !== 'starter'}
+                    />
+                    {/* Cancellation */}
+                    <NotifPrefRow
+                      label="Cancellation"
+                      emailKey="notifyEmailCancellation"
+                      smsKey="notifySmsCancellation"
+                      inAppKey="notifyInAppCancellation"
+                      prefs={notifPrefs}
+                      saving={notifPrefsSaving}
+                      onToggle={handleToggleNotifPref}
+                      hasSms={smsUsage?.plan !== 'starter'}
+                    />
+                    {/* Reschedule */}
+                    <NotifPrefRow
+                      label="Reschedule response"
+                      emailKey="notifyEmailReschedule"
+                      smsKey="notifySmsReschedule"
+                      inAppKey="notifyInAppReschedule"
+                      prefs={notifPrefs}
+                      saving={notifPrefsSaving}
+                      onToggle={handleToggleNotifPref}
+                      hasSms={smsUsage?.plan !== 'starter'}
+                    />
+                    {/* Reminder (email to client only — pro doesn't get reminders) */}
+                    <div className="grid grid-cols-[1fr_60px_60px_60px] gap-2 items-center py-2.5 border-b border-slate-50">
+                      <span className="text-sm text-slate-700">24hr reminder <span className="text-xs text-slate-400">(to client)</span></span>
+                      <div className="flex justify-center">
+                        <ToggleSwitch
+                          enabled={notifPrefs.notifyEmailReminder}
+                          saving={notifPrefsSaving === 'notifyEmailReminder'}
+                          onToggle={() => handleToggleNotifPref('notifyEmailReminder')}
+                        />
+                      </div>
+                      <div className="flex justify-center">
+                        {smsUsage?.plan !== 'starter' ? (
+                          <ToggleSwitch
+                            enabled={notifPrefs.notifySmsReminder}
+                            saving={notifPrefsSaving === 'notifySmsReminder'}
+                            onToggle={() => handleToggleNotifPref('notifySmsReminder')}
+                          />
+                        ) : (
+                          <span className="text-xs text-slate-300">—</span>
+                        )}
+                      </div>
+                      <div className="flex justify-center">
+                        <span className="text-xs text-slate-300">—</span>
+                      </div>
+                    </div>
+                    {/* Review request (email to client only) */}
+                    <div className="grid grid-cols-[1fr_60px_60px_60px] gap-2 items-center py-2.5 border-b border-slate-50">
+                      <span className="text-sm text-slate-700">Review request <span className="text-xs text-slate-400">(to client)</span></span>
+                      <div className="flex justify-center">
+                        <ToggleSwitch
+                          enabled={notifPrefs.notifyEmailReviewRequest}
+                          saving={notifPrefsSaving === 'notifyEmailReviewRequest'}
+                          onToggle={() => handleToggleNotifPref('notifyEmailReviewRequest')}
+                        />
+                      </div>
+                      <div className="flex justify-center">
+                        <span className="text-xs text-slate-300">—</span>
+                      </div>
+                      <div className="flex justify-center">
+                        <span className="text-xs text-slate-300">—</span>
+                      </div>
+                    </div>
+                    {/* New review (in-app to pro only) */}
+                    <div className="grid grid-cols-[1fr_60px_60px_60px] gap-2 items-center py-2.5 border-b border-slate-50">
+                      <span className="text-sm text-slate-700">New review received</span>
+                      <div className="flex justify-center">
+                        <span className="text-xs text-slate-300">—</span>
+                      </div>
+                      <div className="flex justify-center">
+                        <span className="text-xs text-slate-300">—</span>
+                      </div>
+                      <div className="flex justify-center">
+                        <ToggleSwitch
+                          enabled={notifPrefs.notifyInAppReview}
+                          saving={notifPrefsSaving === 'notifyInAppReview'}
+                          onToggle={() => handleToggleNotifPref('notifyInAppReview')}
+                        />
+                      </div>
+                    </div>
+                    {/* Payment received (in-app to pro only) */}
+                    <div className="grid grid-cols-[1fr_60px_60px_60px] gap-2 items-center py-2.5">
+                      <span className="text-sm text-slate-700">Payment received</span>
+                      <div className="flex justify-center">
+                        <span className="text-xs text-slate-300">—</span>
+                      </div>
+                      <div className="flex justify-center">
+                        <span className="text-xs text-slate-300">—</span>
+                      </div>
+                      <div className="flex justify-center">
+                        <ToggleSwitch
+                          enabled={notifPrefs.notifyInAppPayment}
+                          saving={notifPrefsSaving === 'notifyInAppPayment'}
+                          onToggle={() => handleToggleNotifPref('notifyInAppPayment')}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             </div>
           )}
 
@@ -860,6 +1049,85 @@ export function SettingsContent({ user, tenant }: SettingsContentProps) {
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Helper components for notification preferences ---
+
+function ToggleSwitch({
+  enabled,
+  saving,
+  onToggle,
+}: {
+  enabled: boolean;
+  saving: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      disabled={saving}
+      className={`relative w-9 h-5 rounded-full transition-colors ${
+        enabled ? 'bg-blue-500' : 'bg-slate-200'
+      } ${saving ? 'opacity-50' : ''}`}
+    >
+      <span
+        className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+          enabled ? 'translate-x-4' : ''
+        }`}
+      />
+    </button>
+  );
+}
+
+function NotifPrefRow({
+  label,
+  emailKey,
+  smsKey,
+  inAppKey,
+  prefs,
+  saving,
+  onToggle,
+  hasSms,
+}: {
+  label: string;
+  emailKey: string;
+  smsKey: string;
+  inAppKey: string;
+  prefs: Record<string, boolean>;
+  saving: string | null;
+  onToggle: (key: string) => void;
+  hasSms: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-[1fr_60px_60px_60px] gap-2 items-center py-2.5 border-b border-slate-50">
+      <span className="text-sm text-slate-700">{label}</span>
+      <div className="flex justify-center">
+        <ToggleSwitch
+          enabled={prefs[emailKey]}
+          saving={saving === emailKey}
+          onToggle={() => onToggle(emailKey)}
+        />
+      </div>
+      <div className="flex justify-center">
+        {hasSms ? (
+          <ToggleSwitch
+            enabled={prefs[smsKey]}
+            saving={saving === smsKey}
+            onToggle={() => onToggle(smsKey)}
+          />
+        ) : (
+          <span className="text-xs text-slate-300">—</span>
+        )}
+      </div>
+      <div className="flex justify-center">
+        <ToggleSwitch
+          enabled={prefs[inAppKey]}
+          saving={saving === inAppKey}
+          onToggle={() => onToggle(inAppKey)}
+        />
       </div>
     </div>
   );

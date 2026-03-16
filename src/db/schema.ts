@@ -178,6 +178,25 @@ export const tenants = pgTable('tenants', {
   // Display
   showPoweredBy: boolean('show_powered_by').default(true).notNull(),
 
+  // Notification preferences (per-channel toggles)
+  // Email prefs
+  notifyEmailBooking: boolean('notify_email_booking').default(true).notNull(),
+  notifyEmailCancellation: boolean('notify_email_cancellation').default(true).notNull(),
+  notifyEmailReschedule: boolean('notify_email_reschedule').default(true).notNull(),
+  notifyEmailReminder: boolean('notify_email_reminder').default(true).notNull(),
+  notifyEmailReviewRequest: boolean('notify_email_review_request').default(true).notNull(),
+  // SMS prefs
+  notifySmsBooking: boolean('notify_sms_booking').default(true).notNull(),
+  notifySmsCancellation: boolean('notify_sms_cancellation').default(true).notNull(),
+  notifySmsReschedule: boolean('notify_sms_reschedule').default(true).notNull(),
+  notifySmsReminder: boolean('notify_sms_reminder').default(true).notNull(),
+  // In-app prefs
+  notifyInAppBooking: boolean('notify_in_app_booking').default(true).notNull(),
+  notifyInAppCancellation: boolean('notify_in_app_cancellation').default(true).notNull(),
+  notifyInAppReschedule: boolean('notify_in_app_reschedule').default(true).notNull(),
+  notifyInAppReview: boolean('notify_in_app_review').default(true).notNull(),
+  notifyInAppPayment: boolean('notify_in_app_payment').default(true).notNull(),
+
   // Booking page customization
   bio: text('bio'),
   coverImage: text('cover_image'),
@@ -328,6 +347,28 @@ export const paymentIntents = pgTable('payment_intents', {
   stripeIdx: index('payment_intents_stripe_idx').on(table.stripePaymentIntentId),
 }));
 
+// ─── Payments (multi-source revenue tracking) ─────────────────
+export const payments = pgTable('payments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id')
+    .notNull()
+    .references(() => tenants.id, { onDelete: 'cascade' }),
+  bookingId: uuid('booking_id')
+    .references(() => bookings.id, { onDelete: 'set null' }), // nullable — manual entries may not link to a booking
+  amountCents: integer('amount_cents').notNull(),
+  method: varchar('method', { length: 50 }).notNull(), // stripe, cash, venmo, zelle, cashapp, other
+  note: text('note'), // optional note (e.g. "Tip included", "Paid at counter")
+  paidAt: timestamp('paid_at', { mode: 'date' }).notNull(), // when the payment happened
+  stripePaymentIntentId: varchar('stripe_payment_intent_id', { length: 255 }), // if from Stripe
+  createdByUserId: uuid('created_by_user_id').references(() => users.id), // who logged it
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
+}, (table) => ({
+  tenantIdx: index('payments_tenant_idx').on(table.tenantId),
+  bookingIdx: index('payments_booking_idx').on(table.bookingId),
+  paidAtIdx: index('payments_paid_at_idx').on(table.paidAt),
+  methodIdx: index('payments_method_idx').on(table.method),
+}));
+
 export const reviews = pgTable('reviews', {
   id: uuid('id').defaultRandom().primaryKey(),
   bookingId: uuid('booking_id')
@@ -437,6 +478,7 @@ export const tenantsRelations = relations(tenants, ({ one, many }) => ({
   staffAccounts: many(staffAccounts),
   bookings: many(bookings),
   reviews: many(reviews),
+  payments: many(payments),
   availabilityTemplates: many(availabilityTemplates),
   availabilityExceptions: many(availabilityExceptions),
   staffInvites: many(staffInvites),
@@ -470,6 +512,7 @@ export const bookingsRelations = relations(bookings, ({ one, many }) => ({
     relationName: 'staffBookings',
   }),
   paymentIntents: many(paymentIntents),
+  payments: many(payments),
   review: one(reviews),
   notifications: many(notifications),
 }));
@@ -485,6 +528,21 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
   }),
   client: one(users, {
     fields: [reviews.clientId],
+    references: [users.id],
+  }),
+}));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [payments.tenantId],
+    references: [tenants.id],
+  }),
+  booking: one(bookings, {
+    fields: [payments.bookingId],
+    references: [bookings.id],
+  }),
+  createdBy: one(users, {
+    fields: [payments.createdByUserId],
     references: [users.id],
   }),
 }));

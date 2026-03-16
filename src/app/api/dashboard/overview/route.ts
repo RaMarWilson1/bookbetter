@@ -7,7 +7,7 @@ import {
   tenants,
   bookings,
   services,
-  paymentIntents,
+  payments,
   availabilityTemplates,
 } from '@/db/schema';
 import { eq, and, gte, lte, count, sum, sql, desc, asc } from 'drizzle-orm';
@@ -87,6 +87,18 @@ export async function GET() {
     .select({ count: sql<number>`COUNT(DISTINCT ${bookings.clientEmail})` })
     .from(bookings)
     .where(eq(bookings.tenantId, tid));
+
+  // This week's revenue (all plans — from payments table)
+  const [basicWeekRevenue] = await db
+    .select({ total: sum(payments.amountCents) })
+    .from(payments)
+    .where(
+      and(
+        eq(payments.tenantId, tid),
+        gte(payments.paidAt, weekStart),
+        lte(payments.paidAt, weekEnd)
+      )
+    );
 
   // Today's appointments (full details)
   const todayAppointments = await db
@@ -179,17 +191,15 @@ export async function GET() {
   let analytics = null;
 
   if (tenant.plan !== 'starter') {
-    // This week's revenue
+    // This week's revenue (from all payment sources)
     const [weekRevenue] = await db
-      .select({ total: sum(paymentIntents.amountCents) })
-      .from(paymentIntents)
-      .innerJoin(bookings, eq(paymentIntents.bookingId, bookings.id))
+      .select({ total: sum(payments.amountCents) })
+      .from(payments)
       .where(
         and(
-          eq(bookings.tenantId, tid),
-          eq(paymentIntents.status, 'succeeded'),
-          gte(paymentIntents.createdAt, weekStart),
-          lte(paymentIntents.createdAt, weekEnd)
+          eq(payments.tenantId, tid),
+          gte(payments.paidAt, weekStart),
+          lte(payments.paidAt, weekEnd)
         )
       );
 
@@ -197,15 +207,13 @@ export async function GET() {
     const lastWeekStart = new Date(weekStart);
     lastWeekStart.setDate(lastWeekStart.getDate() - 7);
     const [lastWeekRevenue] = await db
-      .select({ total: sum(paymentIntents.amountCents) })
-      .from(paymentIntents)
-      .innerJoin(bookings, eq(paymentIntents.bookingId, bookings.id))
+      .select({ total: sum(payments.amountCents) })
+      .from(payments)
       .where(
         and(
-          eq(bookings.tenantId, tid),
-          eq(paymentIntents.status, 'succeeded'),
-          gte(paymentIntents.createdAt, lastWeekStart),
-          lte(paymentIntents.createdAt, weekStart)
+          eq(payments.tenantId, tid),
+          gte(payments.paidAt, lastWeekStart),
+          lte(payments.paidAt, weekStart)
         )
       );
 
@@ -215,20 +223,18 @@ export async function GET() {
 
     const revenueByDay = await db
       .select({
-        day: sql<string>`TO_CHAR(${paymentIntents.createdAt}, 'YYYY-MM-DD')`,
-        total: sum(paymentIntents.amountCents),
+        day: sql<string>`TO_CHAR(${payments.paidAt}, 'YYYY-MM-DD')`,
+        total: sum(payments.amountCents),
       })
-      .from(paymentIntents)
-      .innerJoin(bookings, eq(paymentIntents.bookingId, bookings.id))
+      .from(payments)
       .where(
         and(
-          eq(bookings.tenantId, tid),
-          eq(paymentIntents.status, 'succeeded'),
-          gte(paymentIntents.createdAt, thirtyDaysAgo)
+          eq(payments.tenantId, tid),
+          gte(payments.paidAt, thirtyDaysAgo)
         )
       )
-      .groupBy(sql`TO_CHAR(${paymentIntents.createdAt}, 'YYYY-MM-DD')`)
-      .orderBy(sql`TO_CHAR(${paymentIntents.createdAt}, 'YYYY-MM-DD')`);
+      .groupBy(sql`TO_CHAR(${payments.paidAt}, 'YYYY-MM-DD')`)
+      .orderBy(sql`TO_CHAR(${payments.paidAt}, 'YYYY-MM-DD')`);
 
     // Top services by booking count (this month)
     const topServices = await db
@@ -336,6 +342,7 @@ export async function GET() {
     bookingsQuota: tenant.bookingsQuota || 15,
     totalClients: totalClients.count,
     completionRate,
+    weekRevenue: Number(basicWeekRevenue?.total || 0),
     todayAppointments,
     setupComplete,
     analytics,

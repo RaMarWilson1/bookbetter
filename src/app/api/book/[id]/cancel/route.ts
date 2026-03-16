@@ -5,6 +5,7 @@ import { bookings, tenants, staffAccounts } from '@/db/schema';
 import { eq, and, or } from 'drizzle-orm';
 import { notifyCancellation } from '@/lib/notifications';
 import { notifyInAppCancellation } from '@/lib/in-app-notify';
+import { getNotificationPrefs } from '@/lib/notification-prefs';
 
 export async function POST(
   req: NextRequest,
@@ -89,22 +90,27 @@ export async function POST(
       })
       .where(eq(bookings.id, id));
 
+    // Fetch notification preferences
+    const prefs = await getNotificationPrefs(booking.tenantId);
+
     // Send cancellation emails (fire-and-forget)
-    notifyCancellation(
-      {
-        bookingId: booking.id,
-        clientId: booking.clientId,
-        clientName: booking.clientName || 'Client',
-        clientEmail: booking.clientEmail || email.toLowerCase(),
-        tenantId: booking.tenantId,
-        serviceId: booking.serviceId,
-        startUtc: booking.startUtc,
-        reason: isLateCancellation
-          ? `Late cancellation (${hoursUntilAppointment.toFixed(1)}h before)`
-          : undefined,
-      },
-      'client'
-    ).catch((err) => console.error('[Notifications] Cancellation error:', err));
+    if (prefs.notifyEmailCancellation) {
+      notifyCancellation(
+        {
+          bookingId: booking.id,
+          clientId: booking.clientId,
+          clientName: booking.clientName || 'Client',
+          clientEmail: booking.clientEmail || email.toLowerCase(),
+          tenantId: booking.tenantId,
+          serviceId: booking.serviceId,
+          startUtc: booking.startUtc,
+          reason: isLateCancellation
+            ? `Late cancellation (${hoursUntilAppointment.toFixed(1)}h before)`
+            : undefined,
+        },
+        'client'
+      ).catch((err) => console.error('[Notifications] Cancellation error:', err));
+    }
 
     // In-app notification for pro (client cancelled)
     const [owner] = await db
@@ -112,7 +118,7 @@ export async function POST(
       .from(staffAccounts)
       .where(and(eq(staffAccounts.tenantId, booking.tenantId), eq(staffAccounts.role, 'owner')))
       .limit(1);
-    if (owner) {
+    if (owner && prefs.notifyInAppCancellation) {
       notifyInAppCancellation(owner.userId, booking.clientName || 'Client', 'an appointment', true)
         .catch((err) => console.error('[InApp] Cancellation error:', err));
     }
