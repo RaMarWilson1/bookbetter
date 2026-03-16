@@ -13,7 +13,7 @@ import {
 } from '@/lib/email-templates';
 import { db } from '@/db';
 import { tenants, services, staffAccounts, users } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 
 /**
  * Resolve booking context needed for email templates.
@@ -45,7 +45,13 @@ async function resolveBookingContext(tenantId: string, serviceId: string) {
       userId: staffAccounts.userId,
     })
     .from(staffAccounts)
-    .where(eq(staffAccounts.tenantId, tenantId))
+    .where(
+      and(
+        eq(staffAccounts.tenantId, tenantId),
+        eq(staffAccounts.role, 'owner'),
+        eq(staffAccounts.active, true)
+      )
+    )
     .limit(1);
 
   let ownerEmail: string | null = null;
@@ -56,6 +62,9 @@ async function resolveBookingContext(tenantId: string, serviceId: string) {
       .where(eq(users.id, owner.userId))
       .limit(1);
     ownerEmail = user?.email || null;
+    console.log(`[Notifications] Owner resolved: userId=${owner.userId}, email=${ownerEmail}`);
+  } else {
+    console.warn(`[Notifications] No owner found for tenant ${tenantId}`);
   }
 
   return {
